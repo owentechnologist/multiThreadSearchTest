@@ -194,7 +194,7 @@ class SearchTest implements Runnable{
         connectionPoolConfig.setMaxIdle(100);
         connectionPoolConfig.setMaxTotal(200);
         connectionPoolConfig.setMaxWait(Duration.ofSeconds(30));
-        connectionPoolConfig.setTestOnBorrow(true);//extra ping
+        connectionPoolConfig.setTestOnCreate(true);//extra ping
     }
 
     public void setTestInstanceID(String testInstanceID) {
