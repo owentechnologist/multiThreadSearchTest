@@ -26,12 +26,12 @@ Arguments you can provide include:
 ### To invoke this class use maven like this:
 
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 5 --limitsize 10 --numberofthreads 3"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 5 --limitsize 10 --numberofthreads 3"
 ```
 
 Or if you have no user password to worry about:
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 100 --limitsize 10 --numberofthreads 3"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 100 --limitsize 10 --numberofthreads 3"
 ```
 
 ## The program will run with your settings until all threads are complete and then show the avg latency per thread for the specified number of queries executed as well as the total clock time experienced by the client threads waiting for results.
