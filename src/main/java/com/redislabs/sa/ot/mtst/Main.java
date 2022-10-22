@@ -1,4 +1,5 @@
 package com.redislabs.sa.ot.mtst;
+import com.redislabs.sa.ot.util.PropertyFileFetcher;
 import redis.clients.jedis.*;
 import redis.clients.jedis.search.*;
 
@@ -9,6 +10,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Properties;
 
 /**
  * To invoke this class use:
@@ -88,6 +90,7 @@ public class Main {
 
         ArrayList<SearchTest> testers = new ArrayList<>();
         URI choice = uri1;
+        ArrayList<String> searchQueries = loadSearchQueries();
         for(int x= 0;x<numberOfThreads;x++){
             choice = uri1;
             if(x%2==0){
@@ -103,7 +106,7 @@ public class Main {
             test.setUri(choice);
             test.setNumberOfResultsLimit(limitSize);
             test.setTimesToQuery(queryCountPerThread);
-            test.setSearchQueries(createSearchQueries());// need to create these
+            test.setSearchQueries(searchQueries);
             test.init(); // get jedis connection for the thread
             testers.add(test);
         }
@@ -112,7 +115,7 @@ public class Main {
             t.start();
         }
         System.out.println("\nEach thread will execute queries using some or all of the following filters: (selected at random each time a thread fires a query)");
-        for(String q: createSearchQueries()){
+        for(String q: searchQueries){
             System.out.println(q);
         }
         System.out.println("");//extra space on screen
@@ -168,11 +171,15 @@ public class Main {
         }
     }
 
-    static ArrayList<String> createSearchQueries(){
+    static ArrayList<String> loadSearchQueries(){
+        Properties p = PropertyFileFetcher.loadProps("QueryStrings.properties");
         ArrayList<String> queries = new ArrayList<>();
-        queries.add("@days:{Sat} @days:{Sun} @times:{09*} -@location:('House') ");
+        for(String s : p.stringPropertyNames()) {
+            queries.add(p.getProperty(s));
+        /*queries.add("@days:{Sat} @days:{Sun} @times:{09*} -@location:('House') ");
         queries.add("@contact_name:(Jo* Hu*)");
-        queries.add("@cost:[-inf 5.00]");
+        queries.add("@cost:[-inf 5.00]");*/
+        }
         return queries;
     }
 }

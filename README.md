@@ -3,8 +3,8 @@
 ## To populate Redis with the data you will need for this test - you need to run that other program found here :
 https://github.com/owentechnologist/jsonZewSearch
 
-### <em>The queries used in this sample code are hard-coded Strings found in the method: createSearchQueries()
-### Feel free to edit those (at some point I might create a separate file to store the variants that could be loaded instead)
+### <em>The query filters used in this sample code are Strings found in QueryStrings.properties file
+### Feel free to edit those once you are familiar with the data set 
 </em>
 
 ## This example allows you to test the impact of several things on performance: 
