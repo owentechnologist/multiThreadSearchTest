@@ -8,14 +8,12 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * To invoke this class use:
- * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3"
- * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3"
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3 --pausebetweenthreads 200"
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3 --pausebetweenthreads 200"
  */
 public class Main {
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
@@ -29,7 +27,11 @@ public class Main {
         int limitSize = 1000;
         int numberOfThreads = 100;
         int queryCountPerThread = 100;
+        int pauseBetweenThreads = 100;//milliseconds
         ArrayList<String> argList =null;
+        ArrayList<SearchTest> testers = new ArrayList<>();
+        ArrayList<String> searchQueries = loadSearchQueries();
+
         if(args.length>0){
             argList = new ArrayList<>(Arrays.asList(args));
             if(argList.contains("--idxname")){
@@ -51,6 +53,10 @@ public class Main {
             if(argList.contains("--querycountperthread")){
                 int queryCountIndex = argList.indexOf("--querycountperthread");
                 queryCountPerThread = Integer.parseInt(argList.get(queryCountIndex+1));
+            }
+            if(argList.contains("--pausebetweenthreads")){
+                int pauseIndex = argList.indexOf("--pausebetweenthreads");
+                pauseBetweenThreads = Integer.parseInt(argList.get(pauseIndex+1));
             }
             if(argList.contains("--numberofthreads")){
                 int quantityIndex = argList.indexOf("--numberofthreads");
@@ -87,18 +93,17 @@ public class Main {
                 uri2 = new URI("redis://" + hnp2.getHost() + ":" + hnp2.getPort());
             }
         }catch(URISyntaxException use){use.printStackTrace();System.exit(1);}
+        //Have to do this before the test kicks off!
+        Jedis jedis = new Jedis(uri1);
+        jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
 
-        ArrayList<SearchTest> testers = new ArrayList<>();
-        URI choice = uri1;
-        ArrayList<String> searchQueries = loadSearchQueries();
+        URI choice = uri1; //99% of the time you only want a single target redis uri
+        // - the following bit of code does nothing in that case
         for(int x= 0;x<numberOfThreads;x++){
             choice = uri1;
             if(x%2==0){
                 choice=uri2;
             }
-            try {
-                Thread.sleep(10);
-            }catch(Throwable t){}
             System.out.println("Connecting to "+choice.toString());
             SearchTest test = new SearchTest();
             test.setIndexAliasName(INDEX_ALIAS_NAME);
@@ -111,6 +116,9 @@ public class Main {
             testers.add(test);
         }
         for(SearchTest test:testers){
+            try {
+                Thread.sleep(pauseBetweenThreads);
+            }catch(Throwable t){}
             Thread t = new Thread(test);
             t.start();
         }
@@ -118,7 +126,6 @@ public class Main {
         for(String q: searchQueries){
             System.out.println(q);
         }
-        System.out.println("");//extra space on screen
         //wait to determine test has ended before getting results:
         waitForCompletion(false,uri1,testers.size());
 
@@ -155,14 +162,13 @@ public class Main {
             }
         }else{
             Jedis jedis = new Jedis(uri);
-            jedis.del(PERFORMANCE_TEST_THREAD_COUNTER);
             while(noResultsYet){
                 try{
-                    Thread.sleep(1000);
-                }catch(InterruptedException ie){}
+                    Thread.sleep(2000);
+                }catch(InterruptedException ie){ie.printStackTrace();}
                 if(jedis.exists(PERFORMANCE_TEST_THREAD_COUNTER)) {
                     int threadsCompleted = Integer.parseInt(jedis.get(PERFORMANCE_TEST_THREAD_COUNTER));
-                    System.out.println(threadsCompleted+" threads have completed their processing...");
+                    System.out.println("\n\nRESULTS ARE IN!-->>  "+threadsCompleted+" threads have completed their processing...");
                     if (threadsExpected <= threadsCompleted) {
                         noResultsYet = false;
                     }
@@ -194,13 +200,20 @@ class SearchTest implements Runnable{
     int timesToQuery =1;
     int numberOfResultsLimit = 100;
     String testInstanceID = "";
+    static boolean needToLoadFields=true;
+    static ArrayList<FieldName> fieldsReturned = new ArrayList<>();
+    boolean showSample = true;
+    static boolean showSearchIndexInfo = true;
+
 
     static ConnectionPoolConfig connectionPoolConfig;
     {
         connectionPoolConfig = new ConnectionPoolConfig();
-        connectionPoolConfig.setMaxIdle(100);
-        connectionPoolConfig.setMaxTotal(200);
-        connectionPoolConfig.setMaxWait(Duration.ofSeconds(30));
+        connectionPoolConfig.setMaxIdle(1000);
+        connectionPoolConfig.setMaxTotal(1000);
+        connectionPoolConfig.setMaxWait(Duration.ofSeconds(300));
+        connectionPoolConfig.setMinIdle(100);
+        connectionPoolConfig.setTestOnReturn(true);
         connectionPoolConfig.setTestOnCreate(true);//extra ping
     }
 
@@ -230,6 +243,22 @@ class SearchTest implements Runnable{
 
     public void init(){
         pool = new JedisPooled(connectionPoolConfig, uri, 20000);
+        if(showSearchIndexInfo){
+            System.out.println("SEARCH_INDEX_INFO: \n\n"+pool.ftInfo(indexAliasName)+"\n\n");
+            showSearchIndexInfo=false; // only show it once across all threads
+        }
+        if(needToLoadFields){
+            Properties simpleFields = PropertyFileFetcher.loadProps("SimpleReturnFields.properties");
+            for(String f : simpleFields.stringPropertyNames()){
+                fieldsReturned.add(FieldName.of(simpleFields.getProperty(f)));
+            }
+            Properties aliasedFields = PropertyFileFetcher.loadProps("AliasedReturnFields.properties");
+
+            for(String f : aliasedFields.stringPropertyNames()){
+                fieldsReturned.add(FieldName.of(aliasedFields.getProperty(f).split(":")[0]).as(aliasedFields.getProperty(f).split(":")[1]));
+            }
+            needToLoadFields=false;
+        }
     }
 
     //default constructor initializes the object
@@ -241,10 +270,12 @@ class SearchTest implements Runnable{
         for(int x=0;x<timesToQuery;x++){
             try {
                 Thread.sleep(500);
-                executeQuery();
-            }catch(InterruptedException ie){}
+                executeQueryLoadedReturnFields();
+            }catch(InterruptedException ie){ie.getMessage();}
         }
         pool.incr(Main.PERFORMANCE_TEST_THREAD_COUNTER);
+        //System.out.println("ThreadID: "+testInstanceID+" COMPLETED TEST RUN OF: "+timesToQuery+" QUERIES.");
+        //System.out.println("PERFORMANCE_TEST_THREAD_COUNTER now equals: "+pool.get(Main.PERFORMANCE_TEST_THREAD_COUNTER));
     }
 
     ArrayList<String> getPerfTestResults(){
@@ -270,6 +301,36 @@ class SearchTest implements Runnable{
                         FieldName.of("$.description")
                 ).limit(0,numberOfResultsLimit)
         );
+        long duration = (System.currentTimeMillis()-startTime);
+        perfTestResults.add(testInstanceID+": executed query: "+query+" (with "+result.getTotalResults()+" results and limit size of "+numberOfResultsLimit+") Execution took: "+duration+" milliseconds");
+        perfTestNumericResults.add(duration);
+    }
+
+    void executeQueryLoadedReturnFields(){
+        long startTime = System.currentTimeMillis();
+        int queryIndex = (int) (System.nanoTime()%searchQueries.size());
+        String query = searchQueries.get(queryIndex);
+        FieldName[] returnFieldsArg = new FieldName[fieldsReturned.size()];
+        int counter = 0;
+        for (Iterator<FieldName> it = fieldsReturned.iterator(); it.hasNext(); ) {
+            returnFieldsArg[counter] =  it.next();
+            counter++;
+        }
+        SearchResult result = pool.ftSearch(indexAliasName, new Query(query)
+                .returnFields(returnFieldsArg)
+                .limit(0,numberOfResultsLimit));
+        if(showSample) {
+            //testing query results:
+            System.out.println("queryArgs == "+query);
+            System.out.println("returnFieldsArgs[0] == "+returnFieldsArg[0]);
+            String output = "sample matching document returned: \n" + result.getDocuments().get(0).getId();
+            for (Map.Entry<String, Object> e : result.getDocuments().get(0).getProperties()) {
+                output += "\n" + e.getKey() + " " + e.getValue();
+            }
+            System.out.println("\n"+result.getTotalResults() + " results matched -- " + output);
+            showSample=false;
+        }
+
         long duration = (System.currentTimeMillis()-startTime);
         perfTestResults.add(testInstanceID+": executed query: "+query+" (with "+result.getTotalResults()+" results and limit size of "+numberOfResultsLimit+") Execution took: "+duration+" milliseconds");
         perfTestNumericResults.add(duration);
