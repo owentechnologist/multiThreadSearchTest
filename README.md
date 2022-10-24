@@ -33,19 +33,19 @@ Arguments you can provide include:
 ### To invoke this class use maven like this:
 
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 20 pausebetweenthreads 250"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 20 pausebetweenthreads 50"
 ```
 
 Or if you have no user password to worry about:
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --pausebetweenthreads 250 --querycountperthread 10 --limitsize 100 --numberofthreads 100"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --pausebetweenthreads 50 --querycountperthread 10 --limitsize 100 --numberofthreads 100"
 ```
 
 ## The program will run with your settings until all threads are complete and then show the avg latency per thread for the specified number of queries executed as well as the total clock time experienced by the client threads waiting for results.
 
 ## Here is a sample run:
 ``` 
-bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 20 --limitsize 20 --numberofthreads 5 --pausebetweenthreads 200"
+bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 200 --limitsize 250 --numberofthreads 5 --pausebetweenthreads 50"
 [INFO] Scanning for projects...
 [INFO] 
 [INFO] -----------------< org.example:multiThreadSearchTest >------------------
@@ -57,11 +57,13 @@ bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="-
 [INFO] Copying 3 resources
 [INFO] 
 [INFO] --- maven-compiler-plugin:3.1:compile (default-compile) @ multiThreadSearchTest ---
-[INFO] Nothing to compile - all classes are up to date
+[INFO] Changes detected - recompiling the module!
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 2 source files to /Users/owentaylor/wip/java/multiThreadSearchTest/target/classes
 [INFO] 
 [INFO] --- exec-maven-plugin:3.0.0:java (default-cli) @ multiThreadSearchTest ---
 LOADING PROPERTIES FILE: QueryStrings.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@75b44de1
+inputStream is now: java.io.BufferedInputStream@13fd8404
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
 SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
 SLF4J: Defaulting to no-operation (NOP) logger implementation
@@ -73,15 +75,26 @@ SEARCH_INDEX_INFO:
 
 
 LOADING PROPERTIES FILE: SimpleReturnFields.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@5206ca89
+inputStream is now: java.io.BufferedInputStream@7d091108
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
 LOADING PROPERTIES FILE: AliasedReturnFields.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@9c62218
+inputStream is now: java.io.BufferedInputStream@1341b68e
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
 Connecting to redis://192.168.1.21:12000
 Connecting to redis://192.168.1.21:12000
 Connecting to redis://192.168.1.21:12000
 Connecting to redis://192.168.1.21:12000
+queryArgs == @event_name:(Lla* Do*)
+returnFieldsArgs[0] == location
+
+9155 results matched -- sample matching document returned: 
+zew:activities:101000
+contact_phone 1-368-150-3634
+first_event_time 10:00 PM
+event_name Llama Documentary
+days ["Mon","Tue","Wed","Thu","Fri","Sun"]
+location Llama Lecture Hall South
+contact_email Ozella@zew.org
 queryArgs == Meerkat MD House East
 returnFieldsArgs[0] == location
 
@@ -93,17 +106,6 @@ event_name Meerkat Feeding
 days ["Mon","Tue","Wed","Thu","Fri","Sat"]
 location Meerkat House East
 contact_email Vanda@zew.org
-queryArgs == @contact_name:(Vi* MD*)
-returnFieldsArgs[0] == location
-
-103 results matched -- sample matching document returned: 
-zew:activities:104663
-contact_phone (757) 027-7594
-first_event_time 10:00 PM
-event_name Bonobo Feeding
-days ["Mon","Tue","Wed","Thu","Fri","Sat"]
-location Bonobo Theater West
-contact_email Vinnie@zew.org
 
 Each thread will execute queries using some or all of the following filters: (selected at random each time a thread fires a query)
 @days:{Sat} @days:{Sun} @times:{09*} -@location:('House')
@@ -116,69 +118,69 @@ Each thread will execute queries using some or all of the following filters: (se
 Meerkat MD House East
 @cost:[25 25] Petting MD
 Waiting for results to come in from our threads...   
-queryArgs == @cost:[0.00 0.00]
+queryArgs == @event_name:(Lla* Do*)
 returnFieldsArgs[0] == location
 
-332933 results matched -- sample matching document returned: 
-zew:activities:109270
-contact_phone 1-442-108-0587
-first_event_time 3:00 PM
-event_name Tiger Training
-days ["Tue","Wed","Fri","Sat"]
-location Tiger Habitat South
-contact_email Jarvis@zew.org
-queryArgs == @location:('Gorilla House South')
+9155 results matched -- sample matching document returned: 
+zew:activities:101000
+contact_phone 1-368-150-3634
+first_event_time 10:00 PM
+event_name Llama Documentary
+days ["Mon","Tue","Wed","Thu","Fri","Sun"]
+location Llama Lecture Hall South
+contact_email Ozella@zew.org
+queryArgs == Meerkat MD House East
 returnFieldsArgs[0] == location
 
-2362 results matched -- sample matching document returned: 
-zew:activities:113676
-contact_phone 119.915.9810
-first_event_time 10 AM
-event_name Gorilla Petting
-days ["Mon","Tue","Wed","Thu","Sat","Sun"]
-location Gorilla House South
-contact_email Mariano@zew.org
-queryArgs == @cost:[-inf 5.00]
+37 results matched -- sample matching document returned: 
+zew:activities:112707
+contact_phone (831) 464-2316
+first_event_time 10:00 PM
+event_name Meerkat Feeding
+days ["Mon","Tue","Wed","Thu","Fri","Sat"]
+location Meerkat House East
+contact_email Vanda@zew.org
+queryArgs == @contact_name:(Jo* Hu*)
 returnFieldsArgs[0] == location
 
-669847 results matched -- sample matching document returned: 
-zew:activities:104988
-contact_phone 1-971-020-6263
-first_event_time 8:00 PM
+160 results matched -- sample matching document returned: 
+zew:activities:149983
+contact_phone 017-249-9005
+first_event_time 6:00 PM
 event_name Chimpanzee Lecture
-days ["Tue","Wed","Fri","Sat"]
-location Chimpanzee Theater East
-contact_email Katharine@zew.org
-....
-RESULTS COMING IN!-->>  3 threads have completed their processing...
+days ["Mon","Tue","Wed","Thu","Sat","Sun"]
+location Chimpanzee House South
+contact_email Joye@zew.org
+...............
+RESULTS COMING IN!-->>  2 threads have completed their processing...
 
 RESULTS COMING IN!-->>  5 threads have completed their processing...
-Thread #1 executed 20 queries
-Thread #1 avg execution time (milliseconds) was: 12
-Thread #1 total execution time (milliseconds) was: 254
-Thread #2 executed 20 queries
-Thread #2 avg execution time (milliseconds) was: 13
-Thread #2 total execution time (milliseconds) was: 278
-Thread #3 executed 20 queries
-Thread #3 avg execution time (milliseconds) was: 11
-Thread #3 total execution time (milliseconds) was: 221
-Thread #4 executed 20 queries
-Thread #4 avg execution time (milliseconds) was: 14
-Thread #4 total execution time (milliseconds) was: 286
-Thread #5 executed 20 queries
-Thread #5 avg execution time (milliseconds) was: 14
-Thread #5 total execution time (milliseconds) was: 289
+Thread #1 executed 200 queries
+Thread #1 avg execution time (milliseconds) was: 33
+Thread #1 total execution time (seconds) was: 6
+Thread #2 executed 200 queries
+Thread #2 avg execution time (milliseconds) was: 34
+Thread #2 total execution time (seconds) was: 6
+Thread #3 executed 200 queries
+Thread #3 avg execution time (milliseconds) was: 34
+Thread #3 total execution time (seconds) was: 6
+Thread #4 executed 200 queries
+Thread #4 avg execution time (milliseconds) was: 35
+Thread #4 total execution time (seconds) was: 7
+Thread #5 executed 200 queries
+Thread #5 avg execution time (milliseconds) was: 35
+Thread #5 total execution time (seconds) was: 7
 
-Across 62 unique results captured, latencies look like this:
-Lowest Recorded roundtrip: [Thread #1 reports round trip time in millis --> 6]
-5th percentile: [Thread #1 reports round trip time in millis --> 7]
-10th percentile: [Thread #4 reports round trip time in millis --> 7]
-25th percentile: [Thread #3 reports round trip time in millis --> 9]
-50th percentile: [Thread #4 reports round trip time in millis --> 13]
-75th percentile: [Thread #3 reports round trip time in millis --> 18]
-90th percentile: [Thread #2 reports round trip time in millis --> 26]
-95th percentile: [Thread #2 reports round trip time in millis --> 27]
-Highest Recorded roundtrip: [Thread #4 reports round trip time in millis --> 37]
+Across 729 unique results captured, latencies look like this:
+Lowest Recorded roundtrip: [Thread #1 reports round trip time in millis --> 6  #1: executed query: Meerkat MD House East (with 37 results and limit size of 250) Execution took: 6 milliseconds]
+5th percentile: [Thread #1 reports round trip time in millis --> 12  #1: executed query: @contact_name:(Jo* Hu*) (with 160 results and limit size of 250) Execution took: 12 milliseconds]
+10th percentile: [Thread #3 reports round trip time in millis --> 15  #3: executed query: @contact_name:(Jo* Hu*) (with 160 results and limit size of 250) Execution took: 15 milliseconds]
+25th percentile: [Thread #3 reports round trip time in millis --> 25  #3: executed query: @location:('Gorilla House South') (with 2362 results and limit size of 250) Execution took: 25 milliseconds]
+50th percentile: [Thread #5 reports round trip time in millis --> 35  #5: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 35 milliseconds]
+75th percentile: [Thread #2 reports round trip time in millis --> 49  #2: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 49 milliseconds]
+90th percentile: [Thread #1 reports round trip time in millis --> 61  #1: executed query: @location:('Gorilla House South') (with 2362 results and limit size of 250) Execution took: 61 milliseconds]
+95th percentile: [Thread #2 reports round trip time in millis --> 70  #2: executed query: @days:{Sat} @days:{Sun} @times:{09*} -@location:('House') (with 22531 results and limit size of 250) Execution took: 70 milliseconds]
+Highest Recorded roundtrip: [Thread #1 reports round trip time in millis --> 142  #1: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 142 milliseconds]
 
 Please check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits
 
@@ -186,7 +188,7 @@ Please check the --> slowlog <-- on your Redis database to determine if any slow
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  14.480 s
-[INFO] Finished at: 2022-10-24T12:10:30-05:00
-[INFO] ------------------------------------------------------------------------ 
+[INFO] Total time:  40.426 s
+[INFO] Finished at: 2022-10-24T13:14:32-05:00
+[INFO] ------------------------------------------------------------------------
 ```
