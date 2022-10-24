@@ -42,6 +42,8 @@ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192
 ```
 
 ## The program will run with your settings until all threads are complete and then show the avg latency per thread for the specified number of queries executed as well as the total clock time experienced by the client threads waiting for results.
+Added variable pause between query executions by each thread.  This is currently calculated as: ((pauseBetweenThreads*2)+(limitSize/10))  So, a 1000 limitsize with 50 millisecond pause between threads makes for 200 millis pause between each query execution by a thread.
+The justification for this is the larger the result set, the longer a client is likely to spend processing it before fetching more
 
 ## Here is a sample run:
 ``` 
