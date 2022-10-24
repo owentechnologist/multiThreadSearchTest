@@ -12,11 +12,12 @@ import java.util.*;
 
 /**
  * To invoke this class use:
- * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3 --pausebetweenthreads 200"
- * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 5 --limitsize 2 --numberofthreads 3 --pausebetweenthreads 200"
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 10 --pausebetweenthreads 250"
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 10 --limitsize 100 --numberofthreads 10 --pausebetweenthreads 250"
  */
 public class Main {
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
+    static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
     public static void main(String[] args){
         String host1 = "192.168.1.20";
@@ -96,6 +97,7 @@ public class Main {
         //Have to do this before the test kicks off!
         Jedis jedis = new Jedis(uri1);
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
+        jedis.del(ALL_RESULTS_SORTED_SET);
 
         URI choice = uri1; //99% of the time you only want a single target redis uri
         // - the following bit of code does nothing in that case
@@ -132,13 +134,14 @@ public class Main {
         for(SearchTest test:testers){
             ArrayList<Long> numericResults = test.getPerfTestNumericResults();
             ArrayList<String> stringResults = test.getPerfTestResults();
+            String threadId = "Thread "+stringResults.get(0).split(":")[0];
             long totalMilliseconds =0l;
             long avgDuration = 0l;
             for(Long time:numericResults){
                 totalMilliseconds+=time;
+                jedis.zadd(ALL_RESULTS_SORTED_SET,time,threadId+" reports round trip time in millis --> "+time);
             }
             avgDuration = totalMilliseconds/numericResults.size();
-            String threadId = "Thread "+stringResults.get(0).split(":")[0];
             System.out.println(threadId+" executed "+numericResults.size()+" queries");
             System.out.println(threadId+" avg execution time (milliseconds) was: "+avgDuration);
             if(totalMilliseconds>1000) {
@@ -147,7 +150,26 @@ public class Main {
                 System.out.println(threadId + " total execution time (milliseconds) was: " + totalMilliseconds);
             }
         }
+        long totalResultsCaptured = jedis.zcard(ALL_RESULTS_SORTED_SET);
+        System.out.println("\nAcross "+totalResultsCaptured+" unique results captured, latencies look like this:");
 
+        System.out.println("Lowest Recorded roundtrip: "+jedis.zrange(ALL_RESULTS_SORTED_SET,0,0));
+        long millis05Index = (long) (totalResultsCaptured*.05);
+        System.out.println("5th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis05Index,millis05Index));
+        long millis10Index = (long) (totalResultsCaptured*.1);
+        System.out.println("10th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis10Index,millis10Index));
+        long millis25Index = (long) (totalResultsCaptured*.25);
+        System.out.println("25th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis25Index,millis25Index));
+        long millis50Index = (long) (totalResultsCaptured*.5);
+        System.out.println("50th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis50Index,millis50Index));
+        long millis75Index = (long) (totalResultsCaptured*.75);
+        System.out.println("75th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis75Index,millis75Index));
+        long millis90Index = (long) (totalResultsCaptured*.9);
+        System.out.println("90th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis90Index,millis90Index));
+        long millis95Index = (long) (totalResultsCaptured*.95);
+        System.out.println("95th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis95Index,millis95Index));
+        System.out.println("Highest Recorded roundtrip: "+jedis.zrange(ALL_RESULTS_SORTED_SET,(totalResultsCaptured-1),(totalResultsCaptured-1)));
+        System.out.println("\nPlease check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits\n\n");
     }
 
     static void waitForCompletion(boolean userDriven,URI uri, int threadsExpected){
@@ -162,13 +184,18 @@ public class Main {
             }
         }else{
             Jedis jedis = new Jedis(uri);
+            System.out.println("Waiting for results to come in from our threads...   ");
             while(noResultsYet){
                 try{
                     Thread.sleep(2000);
                 }catch(InterruptedException ie){ie.printStackTrace();}
                 if(jedis.exists(PERFORMANCE_TEST_THREAD_COUNTER)) {
                     int threadsCompleted = Integer.parseInt(jedis.get(PERFORMANCE_TEST_THREAD_COUNTER));
-                    System.out.println("\n\nRESULTS ARE IN!-->>  "+threadsCompleted+" threads have completed their processing...");
+                    if(threadsCompleted>0) {
+                        System.out.println("\nRESULTS COMING IN!-->>  " + threadsCompleted + " threads have completed their processing...");
+                    }else{
+                        System.out.print(".");
+                    }
                     if (threadsExpected <= threadsCompleted) {
                         noResultsYet = false;
                     }
