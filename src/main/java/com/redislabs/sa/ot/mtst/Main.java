@@ -113,6 +113,7 @@ public class Main {
             test.setUri(choice);
             test.setNumberOfResultsLimit(limitSize);
             test.setTimesToQuery(queryCountPerThread);
+            test.setMillisecondPauseBetweenQueryExecutions((pauseBetweenThreads*2)+(limitSize/10)); // this seems reasonable to me as clients getting large results back will take more time to process them before issuing new queries- adjust if you need to
             test.setSearchQueries(searchQueries);
             test.init(); // get jedis connection for the thread
             testers.add(test);
@@ -137,9 +138,11 @@ public class Main {
             String threadId = "Thread "+stringResults.get(0).split(":")[0];
             long totalMilliseconds =0l;
             long avgDuration = 0l;
+            int resultsCounter =0;
             for(Long time:numericResults){
                 totalMilliseconds+=time;
-                jedis.zadd(ALL_RESULTS_SORTED_SET,time,threadId+" reports round trip time in millis --> "+time);
+                jedis.zadd(ALL_RESULTS_SORTED_SET,time,threadId+" reports round trip time in millis --> "+time+"  "+stringResults.get(resultsCounter));
+                resultsCounter++;
             }
             avgDuration = totalMilliseconds/numericResults.size();
             System.out.println(threadId+" executed "+numericResults.size()+" queries");
@@ -226,6 +229,7 @@ class SearchTest implements Runnable{
     JedisPooled pool = null;
     int timesToQuery =1;
     int numberOfResultsLimit = 100;
+    long millisecondPauseBetweenQueryExecutions = 500;
     String testInstanceID = "";
     static boolean needToLoadFields=true;
     static ArrayList<FieldName> fieldsReturned = new ArrayList<>();
@@ -242,6 +246,10 @@ class SearchTest implements Runnable{
         connectionPoolConfig.setMinIdle(100);
         connectionPoolConfig.setTestOnReturn(true);
         connectionPoolConfig.setTestOnCreate(true);//extra ping
+    }
+
+    public void setMillisecondPauseBetweenQueryExecutions(long millisecondPauseBetweenQueryExecutions){
+        this.millisecondPauseBetweenQueryExecutions = millisecondPauseBetweenQueryExecutions;
     }
 
     public void setTestInstanceID(String testInstanceID) {
@@ -296,7 +304,7 @@ class SearchTest implements Runnable{
     public void run() {
         for(int x=0;x<timesToQuery;x++){
             try {
-                Thread.sleep(500);
+                Thread.sleep(millisecondPauseBetweenQueryExecutions);
                 executeQueryLoadedReturnFields();
             }catch(InterruptedException ie){ie.getMessage();}
         }
