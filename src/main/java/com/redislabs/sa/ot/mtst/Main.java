@@ -277,7 +277,7 @@ class SearchTest implements Runnable{
     }
 
     public void init(){
-        pool = new JedisPooled(connectionPoolConfig, uri, 20000);
+        pool = new JedisPooled(connectionPoolConfig, uri, 120000);
         if(showSearchIndexInfo){
             System.out.println("SEARCH_INDEX_INFO: \n\n"+pool.ftInfo(indexAliasName)+"\n\n");
             showSearchIndexInfo=false; // only show it once across all threads
