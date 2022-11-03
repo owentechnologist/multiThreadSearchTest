@@ -47,7 +47,7 @@ The justification for this is the larger the result set, the longer a client is 
 
 ## Here is a sample run:
 ``` 
-bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 200 --limitsize 250 --numberofthreads 5 --pausebetweenthreads 50"
+bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 10400 --idxname idxa_zew_events --querycountperthread 200 --limitsize 250 --numberofthreads 5 --pausebetweenthreads 250"
 [INFO] Scanning for projects...
 [INFO] 
 [INFO] -----------------< org.example:multiThreadSearchTest >------------------
@@ -59,55 +59,55 @@ bash-3.2$ mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="-
 [INFO] Copying 3 resources
 [INFO] 
 [INFO] --- maven-compiler-plugin:3.1:compile (default-compile) @ multiThreadSearchTest ---
-[INFO] Changes detected - recompiling the module!
-[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
-[INFO] Compiling 2 source files to /Users/owentaylor/wip/java/multiThreadSearchTest/target/classes
+[INFO] Nothing to compile - all classes are up to date
 [INFO] 
 [INFO] --- exec-maven-plugin:3.0.0:java (default-cli) @ multiThreadSearchTest ---
 LOADING PROPERTIES FILE: QueryStrings.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@13fd8404
+inputStream is now: java.io.BufferedInputStream@3778391d
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
 SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
 SLF4J: Defaulting to no-operation (NOP) logger implementation
 SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
-Connecting to redis://192.168.1.21:12000
+Connecting to redis://192.168.1.21:10400
 SEARCH_INDEX_INFO: 
 
-{max_doc_id=250008, sortable_values_size_mb=22.888229370117188, inverted_sz_mb=61.374286651611328, indexing=0, num_records=11586972, num_terms=28410, hash_indexing_failures=0, records_per_doc_avg=11.586948871612549, cursor_stats=[global_idle, 0, global_total, 0, index_capacity, 512, index_total, 0], percent_indexed=1, bytes_per_record_avg=5.5541348457336426, vector_index_sz_mb=0, num_docs=1000002, offset_bits_per_record_avg=8, offset_vectors_sz_mb=9.4981203079223633, doc_table_size_mb=82.863866806030273, gc_stats=[bytes_collected, 0], offsets_per_term_avg=0.85954301059246063, key_table_size_mb=37.246078491210938, total_inverted_index_blocks=451438, attributes=[[identifier, $.name, attribute, event_name, type, TEXT, WEIGHT, 1], [identifier, $.cost, attribute, cost, type, NUMERIC, SORTABLE], [identifier, $.days.*, attribute, days, type, TAG, SEPARATOR, ], [identifier, $.times.*.military, attribute, times, type, TAG, SEPARATOR, ], [identifier, $.location, attribute, location, type, TEXT, WEIGHT, 1], [identifier, $.responsible-parties.[0].name, attribute, contact_name, type, TEXT, WEIGHT, 0.75]], index_name=idx_zew_events, index_definition=[key_type, JSON, prefixes, [zew:activities:], default_score, 1], index_options=[]}
+{max_doc_id=1000003, sortable_values_size_mb=45.7763671875, inverted_sz_mb=159.25590515136719, indexing=0, num_records=28866626, num_terms=14204, hash_indexing_failures=0, number_of_uses=733, records_per_doc_avg=14.433312892913818, cursor_stats=[global_idle, 0, global_total, 0, index_capacity, 256, index_total, 0], percent_indexed=1, bytes_per_record_avg=5.7849476337432861, vector_index_sz_mb=0, num_docs=2000000, offset_bits_per_record_avg=8.5933132171630859, offset_vectors_sz_mb=26.269218444824219, doc_table_size_mb=166.78704833984375, gc_stats=[bytes_collected, 0], offsets_per_term_avg=0.88834241032600403, key_table_size_mb=64.653835296630859, total_inverted_index_blocks=287302, attributes=[[identifier, $.name, attribute, event_name, type, TEXT, WEIGHT, 1], [identifier, $.cost, attribute, cost, type, NUMERIC, SORTABLE, UNF], [identifier, $.days.*, attribute, days, type, TAG, SEPARATOR, ], [identifier, $.times[*].military, attribute, times, type, TAG, SEPARATOR, ], [identifier, $.location, attribute, location, type, TEXT, WEIGHT, 1], [identifier, $.responsible-parties.hosts[*].name, attribute, contact_name, type, TEXT, WEIGHT, 0.75]], index_name=idx_zew_events, index_definition=[key_type, JSON, prefixes, [zew:activities:], default_score, 1], index_options=[]}
 
 
 LOADING PROPERTIES FILE: SimpleReturnFields.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@7d091108
+inputStream is now: java.io.BufferedInputStream@5147626c
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
 LOADING PROPERTIES FILE: AliasedReturnFields.properties USING CLASSLOADER...
-inputStream is now: java.io.BufferedInputStream@1341b68e
+inputStream is now: java.io.BufferedInputStream@7f03a089
 ! --> CLASSLOADER LOADED PROPERTIES FILE...
-Connecting to redis://192.168.1.21:12000
-Connecting to redis://192.168.1.21:12000
-Connecting to redis://192.168.1.21:12000
-Connecting to redis://192.168.1.21:12000
-queryArgs == @event_name:(Lla* Do*)
+Connecting to redis://192.168.1.21:10400
+Connecting to redis://192.168.1.21:10400
+Connecting to redis://192.168.1.21:10400
+Connecting to redis://192.168.1.21:10400
+queryArgs == @contact_name:(Vi* MD*)
 returnFieldsArgs[0] == location
 
-9155 results matched -- sample matching document returned: 
-zew:activities:101000
-contact_phone 1-368-150-3634
-first_event_time 10:00 PM
-event_name Llama Documentary
-days ["Mon","Tue","Wed","Thu","Fri","Sun"]
-location Llama Lecture Hall South
-contact_email Ozella@zew.org
-queryArgs == Meerkat MD House East
+991 results matched -- sample matching document returned: 
+zew:activities:1158470
+contact_phone (504) 670-4944
+first_event_time_military 2200
+event_name Bonobo Training
+days ["Mon","Tue","Wed","Fri","Sat"]
+location Bonobo Theater West
+first_event_time_civilian 10:00 PM
+contact_email Gale@zew.org
+queryArgs == @cost:[0.00 0.00]
 returnFieldsArgs[0] == location
 
-37 results matched -- sample matching document returned: 
-zew:activities:112707
-contact_phone (831) 464-2316
-first_event_time 10:00 PM
-event_name Meerkat Feeding
-days ["Mon","Tue","Wed","Thu","Fri","Sat"]
-location Meerkat House East
-contact_email Vanda@zew.org
+668263 results matched -- sample matching document returned: 
+zew:activities:1000143
+contact_phone 1-260-678-8957
+first_event_time_military 2000
+event_name Hyena Documentary
+days ["Tue","Wed","Fri","Sat"]
+location Hyena Habitat East
+first_event_time_civilian 8:00 PM
+contact_email Jaleesa@zew.org
 
 Each thread will execute queries using some or all of the following filters: (selected at random each time a thread fires a query)
 @days:{Sat} @days:{Sun} @times:{09*} -@location:('House')
@@ -120,69 +120,72 @@ Each thread will execute queries using some or all of the following filters: (se
 Meerkat MD House East
 @cost:[25 25] Petting MD
 Waiting for results to come in from our threads...   
-queryArgs == @event_name:(Lla* Do*)
+queryArgs == @location:('Gorilla House South')
 returnFieldsArgs[0] == location
 
-9155 results matched -- sample matching document returned: 
-zew:activities:101000
-contact_phone 1-368-150-3634
-first_event_time 10:00 PM
-event_name Llama Documentary
-days ["Mon","Tue","Wed","Thu","Fri","Sun"]
-location Llama Lecture Hall South
-contact_email Ozella@zew.org
-queryArgs == Meerkat MD House East
-returnFieldsArgs[0] == location
-
-37 results matched -- sample matching document returned: 
-zew:activities:112707
-contact_phone (831) 464-2316
-first_event_time 10:00 PM
-event_name Meerkat Feeding
+4756 results matched -- sample matching document returned: 
+zew:activities:1000327
+contact_phone 1-680-895-5143
+first_event_time_military 1430
+event_name Gorilla Training
 days ["Mon","Tue","Wed","Thu","Fri","Sat"]
-location Meerkat House East
-contact_email Vanda@zew.org
+location Gorilla House South
+first_event_time_civilian 2:30 PM
+contact_email Matthew@zew.org
 queryArgs == @contact_name:(Jo* Hu*)
 returnFieldsArgs[0] == location
 
-160 results matched -- sample matching document returned: 
-zew:activities:149983
-contact_phone 017-249-9005
-first_event_time 6:00 PM
-event_name Chimpanzee Lecture
-days ["Mon","Tue","Wed","Thu","Sat","Sun"]
-location Chimpanzee House South
-contact_email Joye@zew.org
-...............
+2095 results matched -- sample matching document returned: 
+zew:activities:1354072
+contact_phone (749) 291-0915
+first_event_time_military 2200
+event_name Green Anaconda Lecture
+days ["Mon","Tue","Wed","Thu","Fri","Sat"]
+location Green Anaconda Habitat North
+first_event_time_civilian 10:00 PM
+contact_email Josef@zew.org
+queryArgs == @contact_name:(Vi* MD*)
+returnFieldsArgs[0] == location
+
+991 results matched -- sample matching document returned: 
+zew:activities:1158470
+contact_phone (504) 670-4944
+first_event_time_military 2200
+event_name Bonobo Training
+days ["Mon","Tue","Wed","Fri","Sat"]
+location Bonobo Theater West
+first_event_time_civilian 10:00 PM
+contact_email Gale@zew.org
+.........................................................
 RESULTS COMING IN!-->>  2 threads have completed their processing...
 
 RESULTS COMING IN!-->>  5 threads have completed their processing...
 Thread #1 executed 200 queries
-Thread #1 avg execution time (milliseconds) was: 33
-Thread #1 total execution time (seconds) was: 6
+Thread #1 avg execution time (milliseconds) was: 60
+Thread #1 total execution time (seconds) was: 12
 Thread #2 executed 200 queries
-Thread #2 avg execution time (milliseconds) was: 34
-Thread #2 total execution time (seconds) was: 6
+Thread #2 avg execution time (milliseconds) was: 62
+Thread #2 total execution time (seconds) was: 12
 Thread #3 executed 200 queries
-Thread #3 avg execution time (milliseconds) was: 34
-Thread #3 total execution time (seconds) was: 6
+Thread #3 avg execution time (milliseconds) was: 66
+Thread #3 total execution time (seconds) was: 13
 Thread #4 executed 200 queries
-Thread #4 avg execution time (milliseconds) was: 35
-Thread #4 total execution time (seconds) was: 7
+Thread #4 avg execution time (milliseconds) was: 63
+Thread #4 total execution time (seconds) was: 12
 Thread #5 executed 200 queries
-Thread #5 avg execution time (milliseconds) was: 35
-Thread #5 total execution time (seconds) was: 7
+Thread #5 avg execution time (milliseconds) was: 68
+Thread #5 total execution time (seconds) was: 13
 
-Across 729 unique results captured, latencies look like this:
-Lowest Recorded roundtrip: [Thread #1 reports round trip time in millis --> 6  #1: executed query: Meerkat MD House East (with 37 results and limit size of 250) Execution took: 6 milliseconds]
-5th percentile: [Thread #1 reports round trip time in millis --> 12  #1: executed query: @contact_name:(Jo* Hu*) (with 160 results and limit size of 250) Execution took: 12 milliseconds]
-10th percentile: [Thread #3 reports round trip time in millis --> 15  #3: executed query: @contact_name:(Jo* Hu*) (with 160 results and limit size of 250) Execution took: 15 milliseconds]
-25th percentile: [Thread #3 reports round trip time in millis --> 25  #3: executed query: @location:('Gorilla House South') (with 2362 results and limit size of 250) Execution took: 25 milliseconds]
-50th percentile: [Thread #5 reports round trip time in millis --> 35  #5: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 35 milliseconds]
-75th percentile: [Thread #2 reports round trip time in millis --> 49  #2: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 49 milliseconds]
-90th percentile: [Thread #1 reports round trip time in millis --> 61  #1: executed query: @location:('Gorilla House South') (with 2362 results and limit size of 250) Execution took: 61 milliseconds]
-95th percentile: [Thread #2 reports round trip time in millis --> 70  #2: executed query: @days:{Sat} @days:{Sun} @times:{09*} -@location:('House') (with 22531 results and limit size of 250) Execution took: 70 milliseconds]
-Highest Recorded roundtrip: [Thread #1 reports round trip time in millis --> 142  #1: executed query: @cost:[25 25] Petting MD (with 356 results and limit size of 250) Execution took: 142 milliseconds]
+Across 799 unique results captured, latencies look like this:
+Lowest Recorded roundtrip: [Thread #1: executed query: Meerkat MD House East (with 132 results and limit size of 250) Execution took: 14 milliseconds]
+5th percentile: [Thread #4: executed query: @contact_name:(Vi* MD*) (with 991 results and limit size of 250) Execution took: 27 milliseconds]
+10th percentile: [Thread #2: executed query: @cost:[25 25] Petting MD (with 1419 results and limit size of 250) Execution took: 32 milliseconds]
+25th percentile: [Thread #4: executed query: @event_name:(Lla* Do*) (with 18059 results and limit size of 250) Execution took: 40 milliseconds]
+50th percentile: [Thread #4: executed query: @days:{Sat} @days:{Sun} @times:{09*} -@location:('House') (with 45656 results and limit size of 250) Execution took: 58 milliseconds]
+75th percentile: [Thread #5: executed query: @location:('Gorilla House South') (with 4756 results and limit size of 250) Execution took: 83 milliseconds]
+90th percentile: [Thread #2: executed query: @cost:[-inf 5.00] (with 1339718 results and limit size of 250) Execution took: 123 milliseconds]
+95th percentile: [Thread #1: executed query: @cost:[-inf 5.00] (with 1339718 results and limit size of 250) Execution took: 150 milliseconds]
+Highest Recorded roundtrip: [Thread #2: executed query: @cost:[-inf 5.00] (with 1339718 results and limit size of 250) Execution took: 316 milliseconds]
 
 Please check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits
 
@@ -190,7 +193,7 @@ Please check the --> slowlog <-- on your Redis database to determine if any slow
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  40.426 s
-[INFO] Finished at: 2022-10-24T13:14:32-05:00
+[INFO] Total time:  02:03 min
+[INFO] Finished at: 2022-11-03T17:23:49-05:00
 [INFO] ------------------------------------------------------------------------
 ```
