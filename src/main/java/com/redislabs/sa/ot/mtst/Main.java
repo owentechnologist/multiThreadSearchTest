@@ -141,7 +141,7 @@ public class Main {
             int resultsCounter =0;
             for(Long time:numericResults){
                 totalMilliseconds+=time;
-                jedis.zadd(ALL_RESULTS_SORTED_SET,time,threadId+" reports round trip time in millis --> "+time+"  "+stringResults.get(resultsCounter));
+                jedis.zadd(ALL_RESULTS_SORTED_SET,time,"Thread "+stringResults.get(resultsCounter));
                 resultsCounter++;
             }
             avgDuration = totalMilliseconds/numericResults.size();
