@@ -1,6 +1,8 @@
 package com.redislabs.sa.ot.mtst;
 import com.redislabs.sa.ot.util.PropertyFileFetcher;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.*;
+import redis.clients.jedis.providers.PooledConnectionProvider;
 import redis.clients.jedis.search.*;
 
 import java.io.BufferedReader;
@@ -19,6 +21,10 @@ public class Main {
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
+    static ConnectionHelper connectionHelper = null;
+    private static boolean multiValueSearch = false;
+    private static int dialectVersion = 2;//Dialect 3 is needed for complete multivalue results
+
     public static void main(String[] args){
         String host1 = "192.168.1.20";
         String host2 = "192.168.1.21";
@@ -94,8 +100,9 @@ public class Main {
                 uri2 = new URI("redis://" + hnp2.getHost() + ":" + hnp2.getPort());
             }
         }catch(URISyntaxException use){use.printStackTrace();System.exit(1);}
+        connectionHelper = new ConnectionHelper(uri1); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
-        Jedis jedis = new Jedis(uri1);
+        JedisPooled jedis = connectionHelper.getPooledJedis();
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
         jedis.del(ALL_RESULTS_SORTED_SET);
 
@@ -186,7 +193,7 @@ public class Main {
             } catch (Throwable t) {
             }
         }else{
-            Jedis jedis = new Jedis(uri);
+            JedisPooled jedis = connectionHelper.getPooledJedis();
             System.out.println("Waiting for results to come in from our threads...   ");
             while(noResultsYet){
                 try{
@@ -371,4 +378,43 @@ class SearchTest implements Runnable{
         perfTestNumericResults.add(duration);
     }
 
+}
+class ConnectionHelper{
+
+    final PooledConnectionProvider connectionProvider;
+    final JedisPooled jedisPooled;
+
+    public Pipeline getPipeline(){
+        return new Pipeline(connectionProvider.getConnection());
+    }
+
+    public JedisPooled getPooledJedis(){
+        return jedisPooled;
+    }
+
+    public ConnectionHelper(URI uri){
+        HostAndPort address = new HostAndPort(uri.getHost(), uri.getPort());
+        JedisClientConfig clientConfig = null;
+        System.out.println("$$$ "+uri.getAuthority().split(":").length);
+        if(uri.getAuthority().split(":").length==3){
+            String user = uri.getAuthority().split(":")[0];
+            String password = uri.getAuthority().split(":")[1];
+            System.out.println("\n\nUsing user: "+user+" / password @@@@@@@@@@");
+            clientConfig = DefaultJedisClientConfig.builder().user(user).password(password)
+                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
+
+        }else {
+            clientConfig = DefaultJedisClientConfig.builder()
+                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
+        }
+        GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
+        poolConfig.setMaxIdle(10);
+        poolConfig.setMaxTotal(10);
+        poolConfig.setMinIdle(1);
+        poolConfig.setMaxWait(Duration.ofMinutes(1));
+        poolConfig.setTestOnCreate(true);
+
+        this.connectionProvider = new PooledConnectionProvider(new ConnectionFactory(address, clientConfig), poolConfig);
+        this.jedisPooled = new JedisPooled(connectionProvider);
+    }
 }
