@@ -82,31 +82,19 @@ public class Main {
                 password = argList.get(passwordIndex + 1);
             }
         }
-        HostAndPort hnp1 = new HostAndPort(host1,port);
-        HostAndPort hnp2 = null;
-        if(argList.contains("--host2")) {
-            hnp2 = new HostAndPort(host2, port);
-        }else{
-            hnp2 = new HostAndPort(host1, port);
-        }
-        URI uri1 = null;
-        URI uri2 = null;
-        try {
-            if(!("".equalsIgnoreCase(password))){
-                uri1 = new URI("redis://" + username + ":" + password + "@" + hnp1.getHost() + ":" + hnp1.getPort());
-                uri2 = new URI("redis://" + username + ":" + password + "@" + hnp2.getHost() + ":" + hnp2.getPort());
-            }else{
-                uri1 = new URI("redis://" + hnp1.getHost() + ":" + hnp1.getPort());
-                uri2 = new URI("redis://" + hnp2.getHost() + ":" + hnp2.getPort());
-            }
-        }catch(URISyntaxException use){use.printStackTrace();System.exit(1);}
-        connectionHelper = new ConnectionHelper(uri1); // only use a single connection based on the hostname (not ipaddress) if possible
+        connectionHelper = new ConnectionHelper(ConnectionHelper.buildURI(host1,port,username,password)); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
         JedisPooled jedis = connectionHelper.getPooledJedis();
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
+        System.out.println("PERFORMANCE_TEST_THREAD_COUNTER SET TO: "+jedis.get(PERFORMANCE_TEST_THREAD_COUNTER));
         jedis.del(ALL_RESULTS_SORTED_SET);
 
-        URI choice = uri1; //99% of the time you only want a single target redis uri
+        //99% of the time you only want a single target redis uri
+        URI uri1 =  ConnectionHelper.buildURI(host1,port,username,password);
+        URI uri2 =  ConnectionHelper.buildURI(host2,port,username,password);
+
+        URI choice = null;
+        //99% of the time you only want a single target redis uri
         // - the following bit of code does nothing in that case
         for(int x= 0;x<numberOfThreads;x++){
             choice = uri1;
@@ -117,7 +105,7 @@ public class Main {
             SearchTest test = new SearchTest();
             test.setIndexAliasName(INDEX_ALIAS_NAME);
             test.setTestInstanceID("#"+(x+1));
-            test.setUri(choice);
+            test.setConnectionHelper(connectionHelper);
             test.setNumberOfResultsLimit(limitSize);
             test.setTimesToQuery(queryCountPerThread);
             test.setMillisecondPauseBetweenQueryExecutions((pauseBetweenThreads*2)+(limitSize/10)); // this seems reasonable to me as clients getting large results back will take more time to process them before issuing new queries- adjust if you need to
@@ -228,7 +216,7 @@ public class Main {
 }
 
 class SearchTest implements Runnable{
-    URI uri = null;
+    ConnectionHelper connectionHelper = null;
     ArrayList<String> searchQueries = null;
     ArrayList<String> perfTestResults = new ArrayList<>();
     ArrayList<Long> perfTestNumericResults = new ArrayList<>();
@@ -242,18 +230,6 @@ class SearchTest implements Runnable{
     static ArrayList<FieldName> fieldsReturned = new ArrayList<>();
     boolean showSample = true;
     static boolean showSearchIndexInfo = true;
-
-
-    static ConnectionPoolConfig connectionPoolConfig;
-    {
-        connectionPoolConfig = new ConnectionPoolConfig();
-        connectionPoolConfig.setMaxIdle(1000);
-        connectionPoolConfig.setMaxTotal(1000);
-        connectionPoolConfig.setMaxWait(Duration.ofSeconds(300));
-        connectionPoolConfig.setMinIdle(100);
-        connectionPoolConfig.setTestOnReturn(true);
-        connectionPoolConfig.setTestOnCreate(true);//extra ping
-    }
 
     public void setMillisecondPauseBetweenQueryExecutions(long millisecondPauseBetweenQueryExecutions){
         this.millisecondPauseBetweenQueryExecutions = millisecondPauseBetweenQueryExecutions;
@@ -271,8 +247,8 @@ class SearchTest implements Runnable{
         this.indexAliasName = indexAliasName;
     }
 
-    public void setUri(URI uri) {
-        this.uri = uri;
+    public void setConnectionHelper(ConnectionHelper connectionHelper) {
+        this.connectionHelper = connectionHelper;
     }
 
     public void setNumberOfResultsLimit(int numberOfResultsLimit) {
@@ -284,7 +260,7 @@ class SearchTest implements Runnable{
     }
 
     public void init(){
-        pool = new JedisPooled(connectionPoolConfig, uri, 120000);
+        pool = connectionHelper.getPooledJedis();
         if(showSearchIndexInfo){
             System.out.println("SEARCH_INDEX_INFO: \n\n"+pool.ftInfo(indexAliasName)+"\n\n");
             showSearchIndexInfo=false; // only show it once across all threads
@@ -384,13 +360,54 @@ class ConnectionHelper{
     final PooledConnectionProvider connectionProvider;
     final JedisPooled jedisPooled;
 
+    /**
+     * Used when you want to send a batch of commands to the Redis Server
+     * @return Pipeline
+     */
     public Pipeline getPipeline(){
-        return new Pipeline(connectionProvider.getConnection());
+        return  new Pipeline(jedisPooled.getPool().getResource());
     }
 
+    /**
+     * Assuming use of Jedis 4.3.1:
+     * https://github.com/redis/jedis/blob/82f286b4d1441cf15e32cc629c66b5c9caa0f286/src/main/java/redis/clients/jedis/Transaction.java#L22-L23
+     * @return Transaction
+     */
+    public Transaction getTransaction(){
+        return new Transaction(jedisPooled.getPool().getResource());
+    }
+
+    /**
+     * Obtain the default object used to perform Redis commands
+     * @return JedisPooled
+     */
     public JedisPooled getPooledJedis(){
         return jedisPooled;
     }
+
+    /**
+     * Use this to build the URI expected in this classes' Constructor
+     * @param host
+     * @param port
+     * @param username
+     * @param password
+     * @return
+     */
+    public static URI buildURI(String host,int port,String username,String password){
+        URI uri = null;
+        try {
+            if (!("".equalsIgnoreCase(password))) {
+                uri = new URI("redis://" + username + ":" + password + "@" + host + ":" + port);
+            } else {
+                uri = new URI("redis://" + host + ":" + port);
+            }
+        } catch (URISyntaxException use) {
+            use.printStackTrace();
+            System.exit(1);
+        }
+        return uri;
+    }
+
 
     public ConnectionHelper(URI uri){
         HostAndPort address = new HostAndPort(uri.getHost(), uri.getPort());
@@ -410,7 +427,7 @@ class ConnectionHelper{
         }
         GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
         poolConfig.setMaxIdle(10);
-        poolConfig.setMaxTotal(10);
+        poolConfig.setMaxTotal(1000);
         poolConfig.setMinIdle(1);
         poolConfig.setMaxWait(Duration.ofMinutes(1));
         poolConfig.setTestOnCreate(true);
