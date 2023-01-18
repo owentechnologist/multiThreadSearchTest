@@ -23,7 +23,7 @@ public class Main {
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
     static ConnectionHelper connectionHelper = null;
     private static boolean multiValueSearch = false;
-    private static int dialectVersion = 2;//Dialect 3 is needed for complete multivalue results
+    public static int dialectVersion = 1;//Dialect 3 is needed for complete multivalue results
 
     public static void main(String[] args){
         String host1 = "192.168.1.20";
@@ -44,6 +44,11 @@ public class Main {
             if(argList.contains("--idxname")){
                 int idxNameIndex = argList.indexOf("--idxname");
                 INDEX_ALIAS_NAME = argList.get(idxNameIndex+1);
+            }
+            if(argList.contains("--multivalue")){
+                int argIndex = argList.indexOf("--host2");
+                multiValueSearch = Boolean.parseBoolean(argList.get(argIndex+1));
+                dialectVersion=3;
             }
             if(argList.contains("--host1")){
                 int host1Index = argList.indexOf("--host1");
@@ -312,12 +317,12 @@ class SearchTest implements Runnable{
                         FieldName.of("location"), // only a single value exists in a document
                         FieldName.of("$.times.*.civilian").as("first_event_time"), // only returning 1st time in array due to use of *
                         FieldName.of("$.days").as("days"), // multiple days may be returned
-                        FieldName.of("$.responsible-parties.hosts.[0].email").as("contact_email"), // Returning the first email only even though there could be more
-                        FieldName.of("$.responsible-parties.hosts.[0].phone").as("contact_phone"), // Returning the first phone only even though there could be more
+                        FieldName.of("$.responsible-parties.hosts.[*].email").as("contact_email"), // Returning the first email only even though there could be more
+                        FieldName.of("$.responsible-parties.hosts.[*].phone").as("contact_phone"), // Returning the first phone only even though there could be more
                         FieldName.of("event_name"), // only a single value exists in a document
-                        FieldName.of("$.times[2].military").as("military1"), // only returning 1st time in array due to use of *
+                        FieldName.of("$.times[*].military").as("military1"), // only returning 1st time in array due to use of *
                         FieldName.of("$.description")
-                ).limit(0,numberOfResultsLimit)
+                ).limit(0,numberOfResultsLimit).dialect(Main.dialectVersion)
         );
         long duration = (System.currentTimeMillis()-startTime);
         perfTestResults.add(testInstanceID+": executed query: "+query+" (with "+result.getTotalResults()+" results and limit size of "+numberOfResultsLimit+") Execution took: "+duration+" milliseconds");
@@ -336,7 +341,8 @@ class SearchTest implements Runnable{
         }
         SearchResult result = pool.ftSearch(indexAliasName, new Query(query)
                 .returnFields(returnFieldsArg)
-                .limit(0,numberOfResultsLimit));
+                .limit(0,numberOfResultsLimit)
+                .dialect(Main.dialectVersion));
         if(showSample) {
             //testing query results:
             System.out.println("queryArgs == "+query);
