@@ -48,7 +48,9 @@ public class Main {
             if(argList.contains("--multivalue")){
                 int argIndex = argList.indexOf("--host2");
                 multiValueSearch = Boolean.parseBoolean(argList.get(argIndex+1));
-                dialectVersion=3;
+                if(multiValueSearch){
+                    dialectVersion=3;
+                }
             }
             if(argList.contains("--host1")){
                 int host1Index = argList.indexOf("--host1");
