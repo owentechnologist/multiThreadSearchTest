@@ -1,13 +1,20 @@
+## Please note this program does not load data into Redis 
+## It expects you to point it at an existing data set and Search index
+## ALSO PLEASE NOTE IT DOES NOT TEST SEARCH USING AGGREGATION LOGIC
+
 ### (Performance/Response is measured from a single JVM as it executes several Threads that each perform search queries)
-## This example piggy backs on top of another example that showcases how to write JSON objects into Redis, create an index and query those objects.
-## To populate Redis with the data you will need for this test - you need to run that other program found here :
+## As mentioned - you need to provide data and a search index...
+(In fact, by building your own dataset and defining and supplying an appropriate index as an argument, you can use this code to test against any index and set of data stored in RediSearch)
+
+#### This example can piggy backs on top of another example that showcases how to write JSON objects into Redis, create an index and query those objects.
+#### If you choose To populate Redis with the data from my provided JSON zoo events example  - you may run that other program found here :
 https://github.com/owentechnologist/jsonZewSearch
 
 ### <em>The query filters used in this sample code are Strings found in a file called: ```QueryStrings.properties``` 
 ### Feel free to edit those once you are familiar with the data set 
-(In fact, by building your own dataset and defining and supplying an appropriate index as an argument, you can use this code to test against any index and set of data stored in RediSearch)
-### The fields that are marshalled and returned from queries are specified in the properties files called: 
+### By default, The fields that are marshalled and returned from queries are specified in the properties files called: 
 ### ```SimpleReturnFields.properties``` and ```AliasedReturnFields.properties```
+You may edit these files or provide your own files and pass the names of those files as args (please see the Main.java for the available args)
 </em>
 
 ## This example allows you to test the impact of several things on performance: 
@@ -30,6 +37,12 @@ Arguments you can provide include:
 1. example:  50
 * --pausebetweenthreads (the number of milliseconds to pause before starting each new Thread)
 1. example: 250
+* --querystringspropfilename 
+1. example:  HashQueryStrings.properties 
+* --simplereturnfieldspropfilename 
+1. example: HashSimpleReturnFields.properties 
+* --aliasedreturnfieldspropfilename 
+1. example: HashAliasedReturnFields.properties
 ### To invoke this class use maven like this:
 
 ```

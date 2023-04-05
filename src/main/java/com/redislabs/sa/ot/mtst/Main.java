@@ -13,11 +13,38 @@ import java.time.Duration;
 import java.util.*;
 
 /**
+ *
+ * Please note - this program does not load data into Redis!!
+ * It expects you to point it at an existing data set and Search index
+ *
+ * ALSO PLEASE NOTE IT DOES NOT TEST SEARCH USING AGGREGATION LOGIC
+ *
+ *  A simple way to load matching JSON-based data can be found here:
+ *  https://github.com/owentechnologist/zewtopia_wrkshop_scripts/blob/master/add_json_entities_and_search.md
+ *
  * To invoke this class use:
  * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 10 --pausebetweenthreads 50"
  * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 12000 --idxname idxa_zew_events --querycountperthread 10 --limitsize 100 --numberofthreads 10 --pausebetweenthreads 50"
+ *
+ * NOTE THAT YOU CAN PROVIDE YOUR OWN DATASET AND INDEX ALONG WITH YOUR OWN QUERY PARAMS
+ *
+ *  * It supports JSON search indexes and datasets but can be customized to query for Hash-based simple fields as well
+ *
+ * If you need to specify non-default properties files for dynamic loading of query parameters and result parsing use:
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.20 --port 10900 --idxname idx_omine --querycountperthread 10 --limitsize 100 --numberofthreads 10 --pausebetweenthreads 50 --querystringspropfilename idx_omineQueryStrings.properties  --simplereturnfieldspropfilename idx_omineSimpleReturnFields.properties --aliasedreturnfieldspropfilename idx_omineAliasedReturnFields.properties"
+ *
+ * Sample Hash datatype compatible properties files are found in the resources folder with the prefix 'Hash'
+ * You can invoke this program by using those alternate properties like this:
+ * mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host 192.168.1.21 --port 14787 --idxname idxa_zew --querycountperthread 10 --limitsize 100 --numberofthreads 10 --pausebetweenthreads 50 --querystringspropfilename HashQueryStrings.properties  --simplereturnfieldspropfilename HashSimpleReturnFields.properties --aliasedreturnfieldspropfilename HashAliasedReturnFields.properties"
+ *
+ *  A simple way to load matching Hash-based data can be found here:
+ *  https://github.com/owentechnologist/zewtopia_wrkshop_scripts/blob/master/populate_zew_animals.lua.md
+ *
  */
 public class Main {
+    static String queryStringsPropFileName = "QueryStrings.properties";
+    static String simpleReturnFieldsPropFileName = "SimpleReturnFields.properties";
+    static String aliasedReturnFieldsPropFileName = "AliasedReturnFields.properties";
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
@@ -27,6 +54,7 @@ public class Main {
 
     public static void main(String[] args){
         String host1 = "192.168.1.20";
+        // This second host is not normally utilized:
         String host2 = "192.168.1.21";
         int port = 12000;
         String username = "default";
@@ -37,13 +65,14 @@ public class Main {
         int pauseBetweenThreads = 100;//milliseconds
         ArrayList<String> argList =null;
         ArrayList<SearchTest> testers = new ArrayList<>();
-        ArrayList<String> searchQueries = loadSearchQueries();
+        ArrayList<String> searchQueries = null;
 
         if(args.length>0){
             argList = new ArrayList<>(Arrays.asList(args));
             if(argList.contains("--idxname")){
-                int idxNameIndex = argList.indexOf("--idxname");
-                INDEX_ALIAS_NAME = argList.get(idxNameIndex+1);
+                int argIndex = argList.indexOf("--idxname");
+                INDEX_ALIAS_NAME = argList.get(argIndex+1);
+                System.out.println("loading custom --idxname == "+INDEX_ALIAS_NAME);
             }
             if(argList.contains("--multivalue")){
                 int argIndex = argList.indexOf("--host2");
@@ -53,42 +82,68 @@ public class Main {
                 }
             }
             if(argList.contains("--host1")){
-                int host1Index = argList.indexOf("--host1");
-                host1 = argList.get(host1Index+1);
+                int argIndex = argList.indexOf("--host1");
+                host1 = argList.get(argIndex+1);
+                System.out.println("loading custom --host1 == "+host1);
             }
             if(argList.contains("--host2")){
-                int host2Index = argList.indexOf("--host2");
-                host2 = argList.get(host2Index+1);
+                int argIndex = argList.indexOf("--host2");
+                host2 = argList.get(argIndex+1);
+                System.out.println("loading custom --host2 == "+host2);
             }
             if(argList.contains("--port")){
-                int portIndex = argList.indexOf("--port");
-                port = Integer.parseInt(argList.get(portIndex+1));
+                int argIndex = argList.indexOf("--port");
+                port = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --port == "+port);
             }
             if(argList.contains("--querycountperthread")){
-                int queryCountIndex = argList.indexOf("--querycountperthread");
-                queryCountPerThread = Integer.parseInt(argList.get(queryCountIndex+1));
+                int argIndex = argList.indexOf("--querycountperthread");
+                queryCountPerThread = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --querycountperthread == "+queryCountPerThread);
             }
             if(argList.contains("--pausebetweenthreads")){
-                int pauseIndex = argList.indexOf("--pausebetweenthreads");
-                pauseBetweenThreads = Integer.parseInt(argList.get(pauseIndex+1));
+                int argIndex = argList.indexOf("--pausebetweenthreads");
+                pauseBetweenThreads = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --pausebetweenthreads == "+pauseBetweenThreads);
             }
             if(argList.contains("--numberofthreads")){
-                int quantityIndex = argList.indexOf("--numberofthreads");
-                numberOfThreads = Integer.parseInt(argList.get(quantityIndex+1));
+                int argIndex = argList.indexOf("--numberofthreads");
+                numberOfThreads = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --numberofthreads == "+numberOfThreads);
             }
             if(argList.contains("--limitsize")){
-                int limitIndex = argList.indexOf("--limitsize");
-                limitSize = Integer.parseInt(argList.get(limitIndex+1));
+                int argIndex = argList.indexOf("--limitsize");
+                limitSize = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --limitsize == "+limitSize);
             }
             if(argList.contains("--username")){
-                int userNameIndex = argList.indexOf("--username");
-                username = argList.get(userNameIndex+1);
+                int argIndex = argList.indexOf("--username");
+                username = argList.get(argIndex+1);
+                System.out.println("loading custom --username == "+username);
             }
             if(argList.contains("--password")){
-                int passwordIndex = argList.indexOf("--password");
-                password = argList.get(passwordIndex + 1);
+                int argIndex = argList.indexOf("--password");
+                password = argList.get(argIndex + 1);
+                System.out.println("loading custom --password == "+password);
+            }
+            if(argList.contains("--simplereturnfieldspropfilename")){
+                int argIndex = argList.indexOf("--simplereturnfieldspropfilename");
+                simpleReturnFieldsPropFileName = argList.get(argIndex + 1);
+                System.out.println("loading custom --simplereturnfieldspropfilename == "+simpleReturnFieldsPropFileName);
+            }
+            if(argList.contains("--aliasedreturnfieldspropfilename")){
+                int argIndex = argList.indexOf("--aliasedreturnfieldspropfilename");
+                aliasedReturnFieldsPropFileName = argList.get(argIndex + 1);
+                System.out.println("loading custom --aliasedreturnfieldspropfilename == "+aliasedReturnFieldsPropFileName);
+            }
+            if(argList.contains("--querystringspropfilename")){
+                int argIndex = argList.indexOf("--querystringspropfilename");
+                queryStringsPropFileName = argList.get(argIndex + 1);
+                System.out.println("loading custom --querystringspropfilename == "+queryStringsPropFileName);
             }
         }
+        //now that we have the (possibly) new properties files assigned to their variables...
+        searchQueries = loadSearchQueries();
         connectionHelper = new ConnectionHelper(ConnectionHelper.buildURI(host1,port,username,password)); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
         JedisPooled jedis = connectionHelper.getPooledJedis();
@@ -117,7 +172,7 @@ public class Main {
             test.setTimesToQuery(queryCountPerThread);
             test.setMillisecondPauseBetweenQueryExecutions((pauseBetweenThreads*2)+(limitSize/10)); // this seems reasonable to me as clients getting large results back will take more time to process them before issuing new queries- adjust if you need to
             test.setSearchQueries(searchQueries);
-            test.init(); // get jedis connection for the thread
+            test.init(); // get jedis connection for the thread and specify query params
             testers.add(test);
         }
         for(SearchTest test:testers){
@@ -209,8 +264,13 @@ public class Main {
         }
     }
 
+    /**
+     * This method loads the search query parameters as defined in the default file QueryStrings.properties or
+     * if specified in the file pointed to by teh argument:  --querystringspropfilename
+     * @return
+     */
     static ArrayList<String> loadSearchQueries(){
-        Properties p = PropertyFileFetcher.loadProps("QueryStrings.properties");
+        Properties p = PropertyFileFetcher.loadProps(Main.queryStringsPropFileName);
         ArrayList<String> queries = new ArrayList<>();
         for(String s : p.stringPropertyNames()) {
             queries.add(p.getProperty(s));
@@ -266,6 +326,15 @@ class SearchTest implements Runnable{
         this.timesToQuery = timesToQuery;
     }
 
+    /**
+     * This is where the dynamic loading of result attributes to be extracted from the search queries happens
+     * It utilizes the default files SimpleReturnFields.properties and AliasedReturnFields.properties
+     * unless alternative files are specified using the:
+     * --simplereturnfieldspropfilename
+     * and
+     * --aliasedreturnfieldspropfilename
+     * command line arguments
+     */
     public void init(){
         pool = connectionHelper.getPooledJedis();
         if(showSearchIndexInfo){
@@ -273,11 +342,11 @@ class SearchTest implements Runnable{
             showSearchIndexInfo=false; // only show it once across all threads
         }
         if(needToLoadFields){
-            Properties simpleFields = PropertyFileFetcher.loadProps("SimpleReturnFields.properties");
+            Properties simpleFields = PropertyFileFetcher.loadProps(Main.simpleReturnFieldsPropFileName);
             for(String f : simpleFields.stringPropertyNames()){
                 fieldsReturned.add(FieldName.of(simpleFields.getProperty(f)));
             }
-            Properties aliasedFields = PropertyFileFetcher.loadProps("AliasedReturnFields.properties");
+            Properties aliasedFields = PropertyFileFetcher.loadProps(Main.aliasedReturnFieldsPropFileName);
 
             for(String f : aliasedFields.stringPropertyNames()){
                 fieldsReturned.add(FieldName.of(aliasedFields.getProperty(f).split(":")[0]).as(aliasedFields.getProperty(f).split(":")[1]));
@@ -310,6 +379,11 @@ class SearchTest implements Runnable{
         return perfTestNumericResults;
     }
 
+    /**
+    This method shows some example queries expecting the Zewtopia JSON events dataset
+     It would not normally be part of the execution flow as
+     loading dynamic query params is a major feature of this program
+
     void executeQuery(){
         long startTime = System.currentTimeMillis();
         int queryIndex = (int) (System.currentTimeMillis()%searchQueries.size());
@@ -330,7 +404,12 @@ class SearchTest implements Runnable{
         perfTestResults.add(testInstanceID+": executed query: "+query+" (with "+result.getTotalResults()+" results and limit size of "+numberOfResultsLimit+") Execution took: "+duration+" milliseconds");
         perfTestNumericResults.add(duration);
     }
+     */
 
+    /**
+     * This is the method normally used when running this program
+     * It leverages the dynamic loading of search parameters which are defined in two possible properties files
+     */
     void executeQueryLoadedReturnFields(){
         long startTime = System.currentTimeMillis();
         int queryIndex = (int) (System.nanoTime()%searchQueries.size());
@@ -349,9 +428,13 @@ class SearchTest implements Runnable{
             //testing query results:
             System.out.println("queryArgs == "+query);
             System.out.println("returnFieldsArgs[0] == "+returnFieldsArg[0]);
-            String output = "sample matching document returned: \n" + result.getDocuments().get(0).getId();
-            for (Map.Entry<String, Object> e : result.getDocuments().get(0).getProperties()) {
-                output += "\n" + e.getKey() + " " + e.getValue();
+            String output="\nNo Results returned";
+            if(result.getTotalResults()>0) {
+                output = "sample matching document returned: \n" + result.getDocuments().get(0).getId();
+
+                for (Map.Entry<String, Object> e : result.getDocuments().get(0).getProperties()) {
+                    output += "\n" + e.getKey() + " " + e.getValue();
+                }
             }
             System.out.println("\n"+result.getTotalResults() + " results matched -- " + output);
             showSample=false;
