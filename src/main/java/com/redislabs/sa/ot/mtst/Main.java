@@ -1,15 +1,12 @@
 package com.redislabs.sa.ot.mtst;
+import com.redislabs.sa.ot.util.JedisConnectionHelper;
 import com.redislabs.sa.ot.util.PropertyFileFetcher;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.*;
-import redis.clients.jedis.providers.PooledConnectionProvider;
 import redis.clients.jedis.search.*;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Duration;
 import java.util.*;
 
 /**
@@ -48,7 +45,7 @@ public class Main {
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
-    static ConnectionHelper connectionHelper = null;
+    static JedisConnectionHelper connectionHelper = null;
     private static boolean multiValueSearch = false;
     public static int dialectVersion = 1;//Dialect 3 is needed for complete multivalue results
 
@@ -58,7 +55,7 @@ public class Main {
         String host2 = "192.168.1.21";
         int port = 12000;
         String username = "default";
-        String password = "";
+        String password = "BLAH";
         int limitSize = 1000;
         int numberOfThreads = 100;
         int queryCountPerThread = 100;
@@ -80,6 +77,11 @@ public class Main {
                 if(multiValueSearch){
                     dialectVersion=3;
                 }
+            }
+            if(argList.contains("--host")){
+                int argIndex = argList.indexOf("--host");
+                host1 = argList.get(argIndex+1);
+                System.out.println("loading custom --host == "+host1);
             }
             if(argList.contains("--host1")){
                 int argIndex = argList.indexOf("--host1");
@@ -144,7 +146,7 @@ public class Main {
         }
         //now that we have the (possibly) new properties files assigned to their variables...
         searchQueries = loadSearchQueries();
-        connectionHelper = new ConnectionHelper(ConnectionHelper.buildURI(host1,port,username,password)); // only use a single connection based on the hostname (not ipaddress) if possible
+        connectionHelper = new JedisConnectionHelper(host1, port, username, password, 5000); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
         JedisPooled jedis = connectionHelper.getPooledJedis();
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
@@ -152,8 +154,8 @@ public class Main {
         jedis.del(ALL_RESULTS_SORTED_SET);
 
         //99% of the time you only want a single target redis uri
-        URI uri1 =  ConnectionHelper.buildURI(host1,port,username,password);
-        URI uri2 =  ConnectionHelper.buildURI(host2,port,username,password);
+        URI uri1 =  JedisConnectionHelper.buildURI(host1,port,username,password);
+        URI uri2 =  JedisConnectionHelper.buildURI(host2,port,username,password);
 
         URI choice = null;
         //99% of the time you only want a single target redis uri
@@ -283,7 +285,7 @@ public class Main {
 }
 
 class SearchTest implements Runnable{
-    ConnectionHelper connectionHelper = null;
+    JedisConnectionHelper connectionHelper = null;
     ArrayList<String> searchQueries = null;
     ArrayList<String> perfTestResults = new ArrayList<>();
     ArrayList<Long> perfTestNumericResults = new ArrayList<>();
@@ -314,7 +316,7 @@ class SearchTest implements Runnable{
         this.indexAliasName = indexAliasName;
     }
 
-    public void setConnectionHelper(ConnectionHelper connectionHelper) {
+    public void setConnectionHelper(JedisConnectionHelper connectionHelper) {
         this.connectionHelper = connectionHelper;
     }
 
@@ -446,84 +448,4 @@ class SearchTest implements Runnable{
     }
 
 }
-class ConnectionHelper{
 
-    final PooledConnectionProvider connectionProvider;
-    final JedisPooled jedisPooled;
-
-    /**
-     * Used when you want to send a batch of commands to the Redis Server
-     * @return Pipeline
-     */
-    public Pipeline getPipeline(){
-        return  new Pipeline(jedisPooled.getPool().getResource());
-    }
-
-    /**
-     * Assuming use of Jedis 4.3.1:
-     * https://github.com/redis/jedis/blob/82f286b4d1441cf15e32cc629c66b5c9caa0f286/src/main/java/redis/clients/jedis/Transaction.java#L22-L23
-     * @return Transaction
-     */
-    public Transaction getTransaction(){
-        return new Transaction(jedisPooled.getPool().getResource());
-    }
-
-    /**
-     * Obtain the default object used to perform Redis commands
-     * @return JedisPooled
-     */
-    public JedisPooled getPooledJedis(){
-        return jedisPooled;
-    }
-
-    /**
-     * Use this to build the URI expected in this classes' Constructor
-     * @param host
-     * @param port
-     * @param username
-     * @param password
-     * @return
-     */
-    public static URI buildURI(String host,int port,String username,String password){
-        URI uri = null;
-        try {
-            if (!("".equalsIgnoreCase(password))) {
-                uri = new URI("redis://" + username + ":" + password + "@" + host + ":" + port);
-            } else {
-                uri = new URI("redis://" + host + ":" + port);
-            }
-        } catch (URISyntaxException use) {
-            use.printStackTrace();
-            System.exit(1);
-        }
-        return uri;
-    }
-
-
-    public ConnectionHelper(URI uri){
-        HostAndPort address = new HostAndPort(uri.getHost(), uri.getPort());
-        JedisClientConfig clientConfig = null;
-        System.out.println("$$$ "+uri.getAuthority().split(":").length);
-        if(uri.getAuthority().split(":").length==3){
-            String user = uri.getAuthority().split(":")[0];
-            String password = uri.getAuthority().split(":")[1];
-            password = password.split("@")[0];
-            System.out.println("\n\nUsing user: "+user+" / password @@@@@@@@@@"+password);
-            clientConfig = DefaultJedisClientConfig.builder().user(user).password(password)
-                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
-
-        }else {
-            clientConfig = DefaultJedisClientConfig.builder()
-                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
-        }
-        GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
-        poolConfig.setMaxIdle(10);
-        poolConfig.setMaxTotal(1000);
-        poolConfig.setMinIdle(1);
-        poolConfig.setMaxWait(Duration.ofMinutes(1));
-        poolConfig.setTestOnCreate(true);
-
-        this.connectionProvider = new PooledConnectionProvider(new ConnectionFactory(address, clientConfig), poolConfig);
-        this.jedisPooled = new JedisPooled(connectionProvider);
-    }
-}
