@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -192,15 +193,15 @@ public class Main {
         waitForCompletion(false,uri1,testers.size());
 
         for(SearchTest test:testers){
-            ArrayList<Long> numericResults = test.getPerfTestNumericResults();
+            ArrayList<AtomicLong> numericResults = test.getPerfTestNumericResults();
             ArrayList<String> stringResults = test.getPerfTestResults();
             String threadId = "Thread "+stringResults.get(0).split(":")[0];
             long totalMilliseconds =0l;
             long avgDuration = 0l;
             int resultsCounter =0;
-            for(Long time:numericResults){
-                totalMilliseconds+=time;
-                jedis.zadd(ALL_RESULTS_SORTED_SET,time,"Thread "+stringResults.get(resultsCounter));
+            for(AtomicLong time:numericResults){
+                totalMilliseconds+=time.get();
+                jedis.zadd(ALL_RESULTS_SORTED_SET,time.get(),"Thread "+stringResults.get(resultsCounter));
                 resultsCounter++;
             }
             avgDuration = totalMilliseconds/numericResults.size();
@@ -288,7 +289,7 @@ class SearchTest implements Runnable{
     JedisConnectionHelper connectionHelper = null;
     ArrayList<String> searchQueries = null;
     ArrayList<String> perfTestResults = new ArrayList<>();
-    ArrayList<Long> perfTestNumericResults = new ArrayList<>();
+    ArrayList<AtomicLong> perfTestNumericResults = new ArrayList<>();
     String indexAliasName = "";
     JedisPooled pool = null;
     int timesToQuery =1;
@@ -377,7 +378,7 @@ class SearchTest implements Runnable{
     ArrayList<String> getPerfTestResults(){
         return perfTestResults;
     }
-    ArrayList<Long> getPerfTestNumericResults(){
+    ArrayList<AtomicLong> getPerfTestNumericResults(){
         return perfTestNumericResults;
     }
 
@@ -444,7 +445,7 @@ class SearchTest implements Runnable{
 
         long duration = (System.currentTimeMillis()-startTime);
         perfTestResults.add(testInstanceID+": executed query: "+query+" (with "+result.getTotalResults()+" results and limit size of "+numberOfResultsLimit+") Execution took: "+duration+" milliseconds");
-        perfTestNumericResults.add(duration);
+        perfTestNumericResults.add(new AtomicLong(duration));
     }
 
 }
