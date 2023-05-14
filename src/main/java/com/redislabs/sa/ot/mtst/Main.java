@@ -47,6 +47,7 @@ public class Main {
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
     static JedisConnectionHelper connectionHelper = null;
+    static long systemTestStartTime = System.currentTimeMillis();
     private static boolean multiValueSearch = false;
     public static int dialectVersion = 1;//Dialect 3 is needed for complete multivalue results
 
@@ -193,6 +194,7 @@ public class Main {
         waitForCompletion(false,uri1,testers.size());
 
         for(SearchTest test:testers){
+            Pipeline jedisPipeline = connectionHelper.getPipeline();
             ArrayList<AtomicLong> numericResults = test.getPerfTestNumericResults();
             ArrayList<String> stringResults = test.getPerfTestResults();
             String threadId = "Thread "+stringResults.get(0).split(":")[0];
@@ -201,9 +203,10 @@ public class Main {
             int resultsCounter =0;
             for(AtomicLong time:numericResults){
                 totalMilliseconds+=time.get();
-                jedis.zadd(ALL_RESULTS_SORTED_SET,time.get(),"Thread "+stringResults.get(resultsCounter));
+                jedisPipeline.zadd(ALL_RESULTS_SORTED_SET,time.get(),"Thread "+stringResults.get(resultsCounter));
                 resultsCounter++;
             }
+            jedisPipeline.sync();
             avgDuration = totalMilliseconds/numericResults.size();
             System.out.println(threadId+" executed "+numericResults.size()+" queries");
             System.out.println(threadId+" avg execution time (milliseconds) was: "+avgDuration);
@@ -255,12 +258,13 @@ public class Main {
                 if(jedis.exists(PERFORMANCE_TEST_THREAD_COUNTER)) {
                     int threadsCompleted = Integer.parseInt(jedis.get(PERFORMANCE_TEST_THREAD_COUNTER));
                     if(threadsCompleted>0) {
-                        System.out.println("\nRESULTS COMING IN!-->>  " + threadsCompleted + " threads have completed their processing...");
+                        System.out.println("\nIt's been "+(System.currentTimeMillis()-systemTestStartTime)+" milliseconds since this program launched and RESULTS SO FAR -->>  \n" + threadsCompleted + " threads have completed their processing...");
                     }else{
                         System.out.print(".");
                     }
                     if (threadsExpected <= threadsCompleted) {
                         noResultsYet = false;
+                        System.out.println("\nThe program will now Tally up the times taken by each query for each Thread and provide a summary.\n\n");
                     }
                 }
             }
