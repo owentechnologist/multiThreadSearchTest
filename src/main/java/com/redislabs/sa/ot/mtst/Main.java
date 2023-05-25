@@ -50,6 +50,7 @@ public class Main {
     static long systemTestStartTime = System.currentTimeMillis();
     private static boolean multiValueSearch = false;
     public static int dialectVersion = 1;//Dialect 3 is needed for complete multivalue results
+    public static int queryCountPerThread = 100;
 
     public static void main(String[] args){
         String host1 = "192.168.1.20";
@@ -60,7 +61,6 @@ public class Main {
         String password = "BLAH";
         int limitSize = 1000;
         int numberOfThreads = 100;
-        int queryCountPerThread = 100;
         int pauseBetweenThreads = 100;//milliseconds
         ArrayList<String> argList =null;
         ArrayList<SearchTest> testers = new ArrayList<>();
@@ -264,6 +264,7 @@ public class Main {
                     }
                     if (threadsExpected <= threadsCompleted) {
                         noResultsYet = false;
+                        System.out.println("Throughput per second for the executed Search Queries is approximately: "+(threadsExpected*queryCountPerThread)/((System.currentTimeMillis()-systemTestStartTime)/1000));
                         System.out.println("\nThe program will now Tally up the times taken by each query for each Thread and provide a summary.\n\n");
                     }
                 }
