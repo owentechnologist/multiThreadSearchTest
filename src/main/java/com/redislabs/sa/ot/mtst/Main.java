@@ -235,6 +235,7 @@ public class Main {
         long millis95Index = (long) (totalResultsCaptured*.95);
         System.out.println("95th percentile: "+jedis.zrange(ALL_RESULTS_SORTED_SET,millis95Index,millis95Index));
         System.out.println("Highest Recorded roundtrip: "+jedis.zrange(ALL_RESULTS_SORTED_SET,(totalResultsCaptured-1),(totalResultsCaptured-1)));
+        System.out.println("\n\t"+jedis.get("throughputEstimateStatement"));
         System.out.println("\nPlease check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits\n\n");
     }
 
@@ -264,6 +265,7 @@ public class Main {
                     }
                     if (threadsExpected <= threadsCompleted) {
                         noResultsYet = false;
+                        jedis.set("throughputEstimateStatement","Throughput per second for the executed Search Queries is approximately: "+(threadsExpected*queryCountPerThread)/((System.currentTimeMillis()-systemTestStartTime)/1000));
                         System.out.println("Throughput per second for the executed Search Queries is approximately: "+(threadsExpected*queryCountPerThread)/((System.currentTimeMillis()-systemTestStartTime)/1000));
                         System.out.println("\nThe program will now Tally up the times taken by each query for each Thread and provide a summary.\n\n");
                     }
