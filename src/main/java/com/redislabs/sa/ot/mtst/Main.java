@@ -58,7 +58,7 @@ public class Main {
         String host2 = "192.168.1.21";
         int port = 12000;
         String username = "default";
-        String password = "BLAH";
+        String password = "";
         int limitSize = 1000;
         int numberOfThreads = 100;
         int pauseBetweenThreads = 100;//milliseconds
