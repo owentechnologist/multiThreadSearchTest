@@ -40,9 +40,9 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  */
 public class Main {
-    static String queryStringsPropFileName = "QueryStrings.properties";
-    static String simpleReturnFieldsPropFileName = "SimpleReturnFields.properties";
-    static String aliasedReturnFieldsPropFileName = "AliasedReturnFields.properties";
+    static String queryStringsPropFileName = "idxa_zew_eventsQueryStrings.properties";
+    static String simpleReturnFieldsPropFileName = "idxa_zew_eventsSimpleReturnFields.properties";
+    static String aliasedReturnFieldsPropFileName = "idxa_zew_eventsAliasedReturnFields.properties";
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
@@ -275,7 +275,7 @@ public class Main {
     }
 
     /**
-     * This method loads the search query parameters as defined in the default file QueryStrings.properties or
+     * This method loads the search query parameters as defined in the default file idxa_zew_eventsQueryStrings.properties or
      * if specified in the file pointed to by teh argument:  --querystringspropfilename
      * @return
      */
@@ -338,7 +338,7 @@ class SearchTest implements Runnable{
 
     /**
      * This is where the dynamic loading of result attributes to be extracted from the search queries happens
-     * It utilizes the default files SimpleReturnFields.properties and AliasedReturnFields.properties
+     * It utilizes the default files idxa_zew_eventsSimpleReturnFields.properties and idxa_zew_eventsAliasedReturnFields.properties
      * unless alternative files are specified using the:
      * --simplereturnfieldspropfilename
      * and
