@@ -9,7 +9,6 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 
 public class JedisConnectionHelper {
-
     final PooledConnectionProvider connectionProvider;
     final JedisPooled jedisPooled;
 
@@ -32,6 +31,10 @@ public class JedisConnectionHelper {
 
     /**
      * Obtain the default object used to perform Redis commands
+     * This code does an extraordinary thing in that it adds a key to Redis
+     * This is done to force a healthy connection to be returned
+     * This extra key writing
+     * should not be necessary and should be eventually cleaned out
      * @return JedisPooled
      */
     public JedisPooled getPooledJedis(){
@@ -40,8 +43,8 @@ public class JedisConnectionHelper {
             try {
                 dbsize = jedisPooled.dbSize();
                 if(dbsize<1){
-                    jedisPooled.set("ashortlivedkeyyup","ot");
-                    jedisPooled.expire("ashortlivedkeyyup",2);
+                    jedisPooled.set("com.redislabs.sa.ot.util.JedisConnectionHelper.testKey","ot");
+                    jedisPooled.expire("com.redislabs.sa.ot.util.JedisConnectionHelper.testKey",2);
                 }
             } catch (Throwable t) {
                 t.printStackTrace();
@@ -76,19 +79,8 @@ public class JedisConnectionHelper {
         return uri;
     }
 
-    public JedisConnectionHelper(String host, int port, int maxConnections){
-        this(JedisConnectionHelper.buildURI(host,port,"default",""),maxConnections);
-    }
-
-    public JedisConnectionHelper(JedisConnectionHelperBootStrapper bs){
-        this(JedisConnectionHelper.buildURI(bs.redisHost,bs.redisPort,bs.userName,bs.password),bs.maxConnections);
-    }
-
-    public JedisConnectionHelper(String host, int port, String userName, String passWord, int maxConnections){
-        this(JedisConnectionHelper.buildURI(host,port,userName,passWord),maxConnections);
-    }
-
-    public JedisConnectionHelper(URI uri, int maxConnections){
+    public JedisConnectionHelper(JedisConnectionHelperSettings bs){
+        URI uri = buildURI(bs.getRedisHost(), bs.getRedisPort(), bs.getUserName(),bs.getPassword());
         HostAndPort address = new HostAndPort(uri.getHost(), uri.getPort());
         JedisClientConfig clientConfig = null;
         System.out.println("Connection Creation Debug --> "+uri.getAuthority().split(":").length);
@@ -98,20 +90,20 @@ public class JedisConnectionHelper {
             password = password.split("@")[0];
             System.out.println("\n\nUsing user: "+user+" / password @@@@@@@@@@"+password);
             clientConfig = DefaultJedisClientConfig.builder().user(user).password(password)
-                    .connectionTimeoutMillis(120000).timeoutMillis(12000).build(); // timeout and client settings
+                    .connectionTimeoutMillis(bs.getConnectionTimeoutMillis()).timeoutMillis(bs.getRequestTimeoutMillis()).build(); // timeout and client settings
 
         }else {
             clientConfig = DefaultJedisClientConfig.builder()
-                    .connectionTimeoutMillis(120000).timeoutMillis(12000).build(); // timeout and client settings
+                    .connectionTimeoutMillis(bs.getConnectionTimeoutMillis()).timeoutMillis(bs.getRequestTimeoutMillis()).build(); // timeout and client settings
         }
         GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
-        poolConfig.setMaxIdle(10);
-        poolConfig.setMaxTotal(maxConnections);
-        poolConfig.setMinIdle(10);
-        poolConfig.setMaxWait(Duration.ofMinutes(1));
-        poolConfig.setTestOnCreate(true);
-        poolConfig.setTestOnBorrow(true);
-        poolConfig.setNumTestsPerEvictionRun(10);
+        poolConfig.setMaxIdle(bs.getPoolMaxIdle());
+        poolConfig.setMaxTotal(bs.getMaxConnections());
+        poolConfig.setMinIdle(bs.getPoolMinIdle());
+        poolConfig.setMaxWait(Duration.ofMinutes(bs.getNumberOfMinutesForWaitDuration()));
+        poolConfig.setTestOnCreate(bs.isTestOnCreate());
+        poolConfig.setTestOnBorrow(bs.isTestOnBorrow());
+        poolConfig.setNumTestsPerEvictionRun(bs.getNumTestsPerEvictionRun());
 
         this.connectionProvider = new PooledConnectionProvider(new ConnectionFactory(address, clientConfig), poolConfig);
         this.jedisPooled = new JedisPooled(connectionProvider);

@@ -1,8 +1,9 @@
 package com.redislabs.sa.ot.mtst;
 import com.redislabs.sa.ot.util.JedisConnectionHelper;
-import com.redislabs.sa.ot.util.JedisConnectionHelperBootStrapper;
+import com.redislabs.sa.ot.util.JedisConnectionHelperSettings;
 import com.redislabs.sa.ot.util.PropertyFileFetcher;
 import redis.clients.jedis.*;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.search.*;
 
 import java.io.BufferedReader;
@@ -149,12 +150,21 @@ public class Main {
         }
         //now that we have the (possibly) new properties files assigned to their variables...
         searchQueries = loadSearchQueries();
-        JedisConnectionHelperBootStrapper bootStrapper = new JedisConnectionHelperBootStrapper();
-        bootStrapper.redisHost = host1;
-        bootStrapper.redisPort = port;
-        bootStrapper.userName = username;
-        bootStrapper.password = password;
-        bootStrapper.maxConnections = 500;
+        JedisConnectionHelperSettings bootStrapper = new JedisConnectionHelperSettings();
+        bootStrapper.setRedisHost(host1);
+        bootStrapper.setRedisPort(port);
+        bootStrapper.setUserName(username);
+        bootStrapper.setPassword(password);
+        bootStrapper.setMaxConnections(50000); // these will be healthy, tested connections or idle and removed
+        bootStrapper.setTestOnBorrow(true);
+        bootStrapper.setConnectionTimeoutMillis(120000);
+        bootStrapper.setNumberOfMinutesForWaitDuration(1);
+        bootStrapper.setNumTestsPerEvictionRun(10);
+        bootStrapper.setPoolMaxIdle(1); //this means less stale connections
+        bootStrapper.setPoolMinIdle(0);
+        bootStrapper.setRequestTimeoutMillis(12000);
+        bootStrapper.setTestOnReturn(false); // if idle, they will be mostly removed anyway
+        bootStrapper.setTestOnCreate(true);
 
         connectionHelper = new JedisConnectionHelper(bootStrapper); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
@@ -200,7 +210,7 @@ public class Main {
             System.out.println(q);
         }
         //wait to determine test has ended before getting results:
-        waitForCompletion(false,uri1,testers.size());
+        waitForCompletion(false,bootStrapper,testers.size());
 
         for(SearchTest test:testers){
             Pipeline jedisPipeline = connectionHelper.getPipeline();
@@ -248,7 +258,7 @@ public class Main {
         System.out.println("\nPlease check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits\n\n");
     }
 
-    static void waitForCompletion(boolean userDriven,URI uri, int threadsExpected){
+    static void waitForCompletion(boolean userDriven, JedisConnectionHelperSettings bootStrapper, int threadsExpected){
         boolean noResultsYet = true;
         if(userDriven) {
             System.out.println("Pausing... \n\n\tPlease hit enter when all test threads have completed...");
@@ -263,7 +273,25 @@ public class Main {
             System.out.println("Waiting for results to come in from our threads...   ");
             while(noResultsYet){
                 try{
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
+                    try {
+                        jedis.dbSize();
+                    }catch(JedisConnectionException exception) {
+                        System.out.println("\nwaitForCompletion() Bad thing Happened: client time (millis) is: " + System.currentTimeMillis() + " " + exception.getMessage());
+                        boolean brokenConnection = true;
+                        while (brokenConnection) { // loop forever until connectionHelper gives pool with good connection:
+                            long dbsize = 0;
+                            connectionHelper = new JedisConnectionHelper(bootStrapper);
+                            jedis = connectionHelper.getPooledJedis();
+                            try {
+                                Thread.sleep(10);
+                                dbsize = jedis.dbSize();//I don't trust 'ping' - I probably should though
+                            } catch (Throwable t) {/*do nothing*/}
+                            if (dbsize > 0) {
+                                brokenConnection = false;
+                            }
+                        }
+                    }
                 }catch(InterruptedException ie){ie.printStackTrace();}
                 if(jedis.exists(PERFORMANCE_TEST_THREAD_COUNTER)) {
                     int threadsCompleted = Integer.parseInt(jedis.get(PERFORMANCE_TEST_THREAD_COUNTER));
@@ -302,7 +330,7 @@ public class Main {
 }
 
 class SearchTest implements Runnable{
-    JedisConnectionHelperBootStrapper bootStrapper = null;
+    JedisConnectionHelperSettings bootStrapper = null;
     JedisConnectionHelper connectionHelper = null;
     ArrayList<String> searchQueries = null;
     ArrayList<String> perfTestResults = new ArrayList<>();
@@ -318,7 +346,7 @@ class SearchTest implements Runnable{
     boolean showSample = true;
     static boolean showSearchIndexInfo = true;
 
-    public void setJedisConnectionBootstrapper(JedisConnectionHelperBootStrapper bootStrapper){
+    public void setJedisConnectionBootstrapper(JedisConnectionHelperSettings bootStrapper){
         this.bootStrapper = bootStrapper;
     }
 
