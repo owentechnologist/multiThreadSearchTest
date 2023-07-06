@@ -35,6 +35,21 @@ public class JedisConnectionHelper {
      * @return JedisPooled
      */
     public JedisPooled getPooledJedis(){
+        long dbsize =0;
+        while(dbsize<1) {
+            try {
+                dbsize = jedisPooled.dbSize();
+                if(dbsize<1){
+                    jedisPooled.set("ashortlivedkeyyup","ot");
+                    jedisPooled.expire("ashortlivedkeyyup",2);
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
+                try{
+                    Thread.sleep(10);
+                }catch(Throwable tt){}
+            }
+        }
         return jedisPooled;
     }
 
@@ -65,6 +80,9 @@ public class JedisConnectionHelper {
         this(JedisConnectionHelper.buildURI(host,port,"default",""),maxConnections);
     }
 
+    public JedisConnectionHelper(JedisConnectionHelperBootStrapper bs){
+        this(JedisConnectionHelper.buildURI(bs.redisHost,bs.redisPort,bs.userName,bs.password),bs.maxConnections);
+    }
 
     public JedisConnectionHelper(String host, int port, String userName, String passWord, int maxConnections){
         this(JedisConnectionHelper.buildURI(host,port,userName,passWord),maxConnections);
@@ -80,18 +98,20 @@ public class JedisConnectionHelper {
             password = password.split("@")[0];
             System.out.println("\n\nUsing user: "+user+" / password @@@@@@@@@@"+password);
             clientConfig = DefaultJedisClientConfig.builder().user(user).password(password)
-                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
+                    .connectionTimeoutMillis(120000).timeoutMillis(12000).build(); // timeout and client settings
 
         }else {
             clientConfig = DefaultJedisClientConfig.builder()
-                    .connectionTimeoutMillis(30000).timeoutMillis(120000).build(); // timeout and client settings
+                    .connectionTimeoutMillis(120000).timeoutMillis(12000).build(); // timeout and client settings
         }
         GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
         poolConfig.setMaxIdle(10);
         poolConfig.setMaxTotal(maxConnections);
-        poolConfig.setMinIdle(1);
+        poolConfig.setMinIdle(10);
         poolConfig.setMaxWait(Duration.ofMinutes(1));
         poolConfig.setTestOnCreate(true);
+        poolConfig.setTestOnBorrow(true);
+        poolConfig.setNumTestsPerEvictionRun(10);
 
         this.connectionProvider = new PooledConnectionProvider(new ConnectionFactory(address, clientConfig), poolConfig);
         this.jedisPooled = new JedisPooled(connectionProvider);

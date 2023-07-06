@@ -5,8 +5,10 @@
 ### (Performance/Response is measured from a single JVM as it executes several Threads that each perform search queries)
 ## As mentioned - you need to provide data and a search index...
 (In fact, by building your own dataset and defining and supplying an appropriate index as an argument, you can use this code to test against any index and set of data stored in RediSearch)
+### There is a set of LUA scripts provided within the GENERATE_DATA_FOR_idx_eventjsonLuaNotes.txt file included under the resources folder that will generate 500,000 keys and a search index for use with the idx_eventjson*.properties files 
 
-#### This example can piggy backs on top of another example that showcases how to write JSON objects into Redis, create an index and query those objects.
+
+#### This example can piggy back on top of another example that showcases how to write JSON objects into Redis, create an index and query those objects.
 #### If you choose To populate Redis with the data from my provided JSON zoo events example  - you may run that other program found here :
 https://github.com/owentechnologist/jsonZewSearch
 
@@ -219,4 +221,9 @@ Highest Recorded roundtrip: [Thread #35: executed query: @zip_codes_or_postal_co
         Throughput per second for the executed Search Queries is approximately: 285
 
 Please check the --> slowlog <-- on your Redis database to determine if any slowness is serverside or driven by client or network limits
+```
+
+#### And here is an example of the command needed to run a test using the idx_eventjson* arguments:
+```
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 flashme.westus2.redisenterprise.cache.azure.net --port 10000 --user default --password ecjKWg9yaE44kRNiBjo1hoNYL2Y7GEujIunvyYZ+@pM= --idxname idx_eventjson --querycountperthread 100 --limitsize 500 --numberofthreads 20 --pausebetweenthreads 50 --querystringspropfilename idx_eventjsonQueryStrings.properties --simplereturnfieldspropfilename idx_eventjsonSimpleReturnFields.properties --aliasedreturnfieldspropfilename idx_eventjsonAliasedReturnFields.properties"
 ```

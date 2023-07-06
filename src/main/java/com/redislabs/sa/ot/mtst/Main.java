@@ -1,5 +1,6 @@
 package com.redislabs.sa.ot.mtst;
 import com.redislabs.sa.ot.util.JedisConnectionHelper;
+import com.redislabs.sa.ot.util.JedisConnectionHelperBootStrapper;
 import com.redislabs.sa.ot.util.PropertyFileFetcher;
 import redis.clients.jedis.*;
 import redis.clients.jedis.search.*;
@@ -148,7 +149,14 @@ public class Main {
         }
         //now that we have the (possibly) new properties files assigned to their variables...
         searchQueries = loadSearchQueries();
-        connectionHelper = new JedisConnectionHelper(host1, port, username, password, 5000); // only use a single connection based on the hostname (not ipaddress) if possible
+        JedisConnectionHelperBootStrapper bootStrapper = new JedisConnectionHelperBootStrapper();
+        bootStrapper.redisHost = host1;
+        bootStrapper.redisPort = port;
+        bootStrapper.userName = username;
+        bootStrapper.password = password;
+        bootStrapper.maxConnections = 500;
+
+        connectionHelper = new JedisConnectionHelper(bootStrapper); // only use a single connection based on the hostname (not ipaddress) if possible
         //Have to do this before the test kicks off!
         JedisPooled jedis = connectionHelper.getPooledJedis();
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
@@ -171,6 +179,7 @@ public class Main {
             SearchTest test = new SearchTest();
             test.setIndexAliasName(INDEX_ALIAS_NAME);
             test.setTestInstanceID("#"+(x+1));
+            test.setJedisConnectionBootstrapper(bootStrapper);
             test.setConnectionHelper(connectionHelper);
             test.setNumberOfResultsLimit(limitSize);
             test.setTimesToQuery(queryCountPerThread);
@@ -293,6 +302,7 @@ public class Main {
 }
 
 class SearchTest implements Runnable{
+    JedisConnectionHelperBootStrapper bootStrapper = null;
     JedisConnectionHelper connectionHelper = null;
     ArrayList<String> searchQueries = null;
     ArrayList<String> perfTestResults = new ArrayList<>();
@@ -307,6 +317,10 @@ class SearchTest implements Runnable{
     static ArrayList<FieldName> fieldsReturned = new ArrayList<>();
     boolean showSample = true;
     static boolean showSearchIndexInfo = true;
+
+    public void setJedisConnectionBootstrapper(JedisConnectionHelperBootStrapper bootStrapper){
+        this.bootStrapper = bootStrapper;
+    }
 
     public void setMillisecondPauseBetweenQueryExecutions(long millisecondPauseBetweenQueryExecutions){
         this.millisecondPauseBetweenQueryExecutions = millisecondPauseBetweenQueryExecutions;
@@ -430,10 +444,32 @@ class SearchTest implements Runnable{
             returnFieldsArg[counter] =  it.next();
             counter++;
         }
-        SearchResult result = pool.ftSearch(indexAliasName, new Query(query)
-                .returnFields(returnFieldsArg)
-                .limit(0,numberOfResultsLimit)
-                .dialect(Main.dialectVersion));
+        SearchResult result = null;
+        try {
+            result = pool.ftSearch(indexAliasName, new Query(query)
+                    .returnFields(returnFieldsArg)
+                    .limit(0, numberOfResultsLimit)
+                    .dialect(Main.dialectVersion));
+        }catch(redis.clients.jedis.exceptions.JedisConnectionException exception) {
+            System.out.println("\nexecuteQueryLoadedReturnFields() Bad thing Happened: client time (millis) is: "+System.currentTimeMillis()+" "+exception.getMessage());
+            boolean brokenConnection = true;
+            while(brokenConnection){ // loop forever until connectionHelper gives pool with good connection:
+                long dbsize = 0;
+                this.connectionHelper = new JedisConnectionHelper(bootStrapper);
+                this.pool  = connectionHelper.getPooledJedis();
+                try{
+                    Thread.sleep(10);
+                    dbsize = pool.dbSize();
+                }catch(Throwable t){/*do nothing*/}
+                if(dbsize>0){
+                    brokenConnection=false;
+                }
+            }
+            result = pool.ftSearch(indexAliasName, new Query(query)
+                    .returnFields(returnFieldsArg)
+                    .limit(0, numberOfResultsLimit)
+                    .dialect(Main.dialectVersion));
+        }
         if(showSample) {
             //testing query results:
             System.out.println("queryArgs == "+query);
