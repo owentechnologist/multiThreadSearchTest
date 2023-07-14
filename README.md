@@ -48,7 +48,7 @@ Arguments you can provide include:
 ### To invoke this class use maven like this:
 
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --user applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 20 pausebetweenthreads 50"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 192.168.1.21 --port 12000 --username applicationA --password "secretpass" --idxname idxa_zew_events --querycountperthread 10 --limitsize 50 --numberofthreads 20 pausebetweenthreads 50"
 ```
 
 Or if you have no user password to worry about:
@@ -225,5 +225,10 @@ Please check the --> slowlog <-- on your Redis database to determine if any slow
 
 #### And here is an example of the command needed to run a test using the idx_eventjson* arguments:
 ```
-mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 flashme.westus2.redisenterprise.cache.azure.net --port 10000 --user default --password ecjKWg9yaE44kRNiBjo1hoNYL2Y7GEujIunvyYZ+@pM= --idxname idx_eventjson --querycountperthread 100 --limitsize 500 --numberofthreads 20 --pausebetweenthreads 50 --querystringspropfilename idx_eventjsonQueryStrings.properties --simplereturnfieldspropfilename idx_eventjsonSimpleReturnFields.properties --aliasedreturnfieldspropfilename idx_eventjsonAliasedReturnFields.properties"
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host1 flashme.westus2.redisenterprise.cache.azure.net --port 10000 --username default --password ecjKWg9yaE44kRNiBjo1hoNYL2Y7GEujIunvyYZ+@pM= --idxname idx_eventjson --querycountperthread 100 --limitsize 500 --numberofthreads 20 --pausebetweenthreads 50 --querystringspropfilename idx_eventjsonQueryStrings.properties --simplereturnfieldspropfilename idx_eventjsonSimpleReturnFields.properties --aliasedreturnfieldspropfilename idx_eventjsonAliasedReturnFields.properties"
+```
+
+Here is an example command to run a test using TLS (against Azure cache for Redis Enterprise)
+``` 
+mvn compile exec:java -Dexec.cleanupDaemonThreads=false -Dexec.args="--host searchme.southcentralus.redisenterprise.cache.azure.net --port 10000 --username default --password TfXdPc1I3zauBxWfFpVaqa4DTo0vkqO0JNpzMbAZZuo= --usessl true --usercertpath /Users/owentaylor/wip/security/redis-user-keystore.p12 --usercertpass admin123 --cacertpath /Users/owentaylor/Library/Java/JavaVirtualMachines/openjdk-15.0.1/Contents/Home/lib/security/cacerts --cacertpassword changeit --idxname idx_eventjson --querycountperthread 100 --limitsize 500 --numberofthreads 20 --pausebetweenthreads 50 --querystringspropfilename idx_eventjsonQueryStrings.properties --simplereturnfieldspropfilename idx_eventjsonSimpleReturnFields.properties --aliasedreturnfieldspropfilename idx_eventjsonAliasedReturnFields.properties"
 ```

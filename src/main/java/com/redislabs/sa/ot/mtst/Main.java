@@ -48,22 +48,30 @@ public class Main {
     static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
     static String ALL_RESULTS_SORTED_SET="allresults";
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
-    static JedisConnectionHelper connectionHelper = null;
     static long systemTestStartTime = System.currentTimeMillis();
     private static boolean multiValueSearch = false;
-    public static int dialectVersion = 1;//Dialect 3 is needed for complete multivalue results
+    public static int dialectVersion = 2;//Dialect 3 is needed for complete multivalue results
     public static int queryCountPerThread = 100;
+    static JedisConnectionHelper connectionHelper = null;
 
     public static void main(String[] args){
+
+        String host = "localhost";
         String host1 = "192.168.1.20";
         // This second host is not normally utilized:
         String host2 = "192.168.1.21";
         int port = 12000;
-        String username = "default";
+        String userName = "default";
         String password = "";
         int limitSize = 1000;
         int numberOfThreads = 100;
         int pauseBetweenThreads = 100;//milliseconds
+        boolean useSSL = false;
+        String caCertPath = "";
+        String caCertPassword = "";
+        String userCertPath = "";
+        String userCertPassword = "";
+        int maxConnections = 1;
         ArrayList<String> argList =null;
         ArrayList<SearchTest> testers = new ArrayList<>();
         ArrayList<String> searchQueries = null;
@@ -84,7 +92,7 @@ public class Main {
             }
             if(argList.contains("--host")){
                 int argIndex = argList.indexOf("--host");
-                host1 = argList.get(argIndex+1);
+                host = argList.get(argIndex+1);
                 System.out.println("loading custom --host == "+host1);
             }
             if(argList.contains("--host1")){
@@ -101,6 +109,11 @@ public class Main {
                 int argIndex = argList.indexOf("--port");
                 port = Integer.parseInt(argList.get(argIndex+1));
                 System.out.println("loading custom --port == "+port);
+            }
+            if(argList.contains("--maxconnections")){
+                int argIndex = argList.indexOf("--maxconnections");
+                maxConnections = Integer.parseInt(argList.get(argIndex+1));
+                System.out.println("loading custom --maxconnections == "+maxConnections);
             }
             if(argList.contains("--querycountperthread")){
                 int argIndex = argList.indexOf("--querycountperthread");
@@ -124,8 +137,8 @@ public class Main {
             }
             if(argList.contains("--username")){
                 int argIndex = argList.indexOf("--username");
-                username = argList.get(argIndex+1);
-                System.out.println("loading custom --username == "+username);
+                userName = argList.get(argIndex+1);
+                System.out.println("loading custom --username == "+userName);
             }
             if(argList.contains("--password")){
                 int argIndex = argList.indexOf("--password");
@@ -147,26 +160,69 @@ public class Main {
                 queryStringsPropFileName = argList.get(argIndex + 1);
                 System.out.println("loading custom --querystringspropfilename == "+queryStringsPropFileName);
             }
+            if (argList.contains("--usessl")) {
+                int argIndex = argList.indexOf("--usessl");
+                useSSL = Boolean.parseBoolean(argList.get(argIndex + 1));
+                System.out.println("loading custom --usessl == " + useSSL);
+            }
+            if (argList.contains("--cacertpath")) {
+                int argIndex = argList.indexOf("--cacertpath");
+                caCertPath = argList.get(argIndex + 1);
+                System.out.println("loading custom --cacertpath == " + caCertPath);
+            }
+            if (argList.contains("--cacertpassword")) {
+                int argIndex = argList.indexOf("--cacertpassword");
+                caCertPassword = argList.get(argIndex + 1);
+                System.out.println("loading custom --cacertpassword == " + caCertPassword);
+            }
+            if (argList.contains("--usercertpath")) {
+                int argIndex = argList.indexOf("--usercertpath");
+                userCertPath = argList.get(argIndex + 1);
+                System.out.println("loading custom --usercertpath == " + userCertPath);
+            }
+            if (argList.contains("--usercertpass")) {
+                int argIndex = argList.indexOf("--usercertpass");
+                userCertPassword = argList.get(argIndex + 1);
+                System.out.println("loading custom --usercertpass == " + userCertPassword);
+            }
         }
         //now that we have the (possibly) new properties files assigned to their variables...
         searchQueries = loadSearchQueries();
-        JedisConnectionHelperSettings bootStrapper = new JedisConnectionHelperSettings();
-        bootStrapper.setRedisHost(host1);
-        bootStrapper.setRedisPort(port);
-        bootStrapper.setUserName(username);
-        bootStrapper.setPassword(password);
-        bootStrapper.setMaxConnections(50000); // these will be healthy, tested connections or idle and removed
-        bootStrapper.setTestOnBorrow(true);
-        bootStrapper.setConnectionTimeoutMillis(120000);
-        bootStrapper.setNumberOfMinutesForWaitDuration(1);
-        bootStrapper.setNumTestsPerEvictionRun(10);
-        bootStrapper.setPoolMaxIdle(1); //this means less stale connections
-        bootStrapper.setPoolMinIdle(0);
-        bootStrapper.setRequestTimeoutMillis(12000);
-        bootStrapper.setTestOnReturn(false); // if idle, they will be mostly removed anyway
-        bootStrapper.setTestOnCreate(true);
-
-        connectionHelper = new JedisConnectionHelper(bootStrapper); // only use a single connection based on the hostname (not ipaddress) if possible
+        JedisConnectionHelperSettings settings = new JedisConnectionHelperSettings();
+        settings.setRedisHost(host);
+        settings.setRedisPort(port);
+        settings.setUserName(userName);
+        if(password!="") {
+            settings.setPassword(password);
+            settings.setUsePassword(true);
+        }
+        settings.setMaxConnections(maxConnections); // these will be healthy, tested connections or idle and removed
+        settings.setTestOnBorrow(true);
+        settings.setConnectionTimeoutMillis(120000);
+        settings.setNumberOfMinutesForWaitDuration(1);
+        settings.setNumTestsPerEvictionRun(10);
+        settings.setPoolMaxIdle(1); //this means less stale connections
+        settings.setPoolMinIdle(0);
+        settings.setRequestTimeoutMillis(12000);
+        settings.setTestOnReturn(false); // if idle, they will be mostly removed anyway
+        settings.setTestOnCreate(true);
+        if(useSSL){
+            settings.setUseSSL(true);
+            settings.setCaCertPath(caCertPath);
+            settings.setCaCertPassword(caCertPassword);
+            settings.setUserCertPath(userCertPath);
+            settings.setUserCertPassword(userCertPassword);
+        }
+        try{
+            connectionHelper = new com.redislabs.sa.ot.util.JedisConnectionHelper(settings); // only use a single connection based on the hostname (not ipaddress) if possible
+        }catch(Throwable t){
+            t.printStackTrace();
+            try{
+                Thread.sleep(4000);
+            }catch(InterruptedException ie){}
+            // give it another go - in case the first attempt was just unlucky:
+            connectionHelper = new com.redislabs.sa.ot.util.JedisConnectionHelper(settings); // only use a single connection based on the hostname (not ipaddress) if possible
+        }
         //Have to do this before the test kicks off!
         JedisPooled jedis = connectionHelper.getPooledJedis();
         jedis.set(PERFORMANCE_TEST_THREAD_COUNTER,"0");
@@ -174,8 +230,8 @@ public class Main {
         jedis.del(ALL_RESULTS_SORTED_SET);
 
         //99% of the time you only want a single target redis uri
-        URI uri1 =  JedisConnectionHelper.buildURI(host1,port,username,password);
-        URI uri2 =  JedisConnectionHelper.buildURI(host2,port,username,password);
+        URI uri1 =  JedisConnectionHelper.buildURI(host1,port,userName,password);
+        URI uri2 =  JedisConnectionHelper.buildURI(host2,port,userName,password);
 
         URI choice = null;
         //99% of the time you only want a single target redis uri
@@ -189,7 +245,7 @@ public class Main {
             SearchTest test = new SearchTest();
             test.setIndexAliasName(INDEX_ALIAS_NAME);
             test.setTestInstanceID("#"+(x+1));
-            test.setJedisConnectionBootstrapper(bootStrapper);
+            test.setJedisConnectionBootstrapper(settings);
             test.setConnectionHelper(connectionHelper);
             test.setNumberOfResultsLimit(limitSize);
             test.setTimesToQuery(queryCountPerThread);
@@ -210,7 +266,7 @@ public class Main {
             System.out.println(q);
         }
         //wait to determine test has ended before getting results:
-        waitForCompletion(false,bootStrapper,testers.size());
+        waitForCompletion(false,settings,testers.size());
 
         for(SearchTest test:testers){
             Pipeline jedisPipeline = connectionHelper.getPipeline();
@@ -433,6 +489,8 @@ class SearchTest implements Runnable{
 
     /**
     This method shows some example queries expecting the Zewtopia JSON events dataset
+     I leave it here commented out
+     to showcase the structure of building such a query programmatically
      It would not normally be part of the execution flow as
      loading dynamic query params is a major feature of this program
 

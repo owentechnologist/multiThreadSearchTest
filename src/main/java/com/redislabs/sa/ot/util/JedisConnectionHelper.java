@@ -4,9 +4,18 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.*;
 import redis.clients.jedis.providers.PooledConnectionProvider;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.time.Duration;
+
 
 public class JedisConnectionHelper {
     final PooledConnectionProvider connectionProvider;
@@ -20,39 +29,21 @@ public class JedisConnectionHelper {
         return  new Pipeline(jedisPooled.getPool().getResource());
     }
 
+
     /**
      * Assuming use of Jedis 4.3.1:
      * https://github.com/redis/jedis/blob/82f286b4d1441cf15e32cc629c66b5c9caa0f286/src/main/java/redis/clients/jedis/Transaction.java#L22-L23
      * @return Transaction
      */
     public Transaction getTransaction(){
-        return new Transaction(jedisPooled.getPool().getResource());
+        return new Transaction(getPooledJedis().getPool().getResource());
     }
 
     /**
      * Obtain the default object used to perform Redis commands
-     * This code does an extraordinary thing in that it adds a key to Redis
-     * This is done to force a healthy connection to be returned
-     * This extra key writing
-     * should not be necessary and should be eventually cleaned out
      * @return JedisPooled
      */
     public JedisPooled getPooledJedis(){
-        long dbsize =0;
-        while(dbsize<1) {
-            try {
-                dbsize = jedisPooled.dbSize();
-                if(dbsize<1){
-                    jedisPooled.set("com.redislabs.sa.ot.util.JedisConnectionHelper.testKey","ot");
-                    jedisPooled.expire("com.redislabs.sa.ot.util.JedisConnectionHelper.testKey",2);
-                }
-            } catch (Throwable t) {
-                t.printStackTrace();
-                try{
-                    Thread.sleep(10);
-                }catch(Throwable tt){}
-            }
-        }
         return jedisPooled;
     }
 
@@ -79,22 +70,63 @@ public class JedisConnectionHelper {
         return uri;
     }
 
+    private static SSLSocketFactory createSslSocketFactory(
+            String caCertPath, String caCertPassword, String userCertPath, String userCertPassword)
+            throws IOException, GeneralSecurityException {
+
+        KeyStore keyStore = KeyStore.getInstance("pkcs12");
+        keyStore.load(new FileInputStream(userCertPath), userCertPassword.toCharArray());
+
+        KeyStore trustStore = KeyStore.getInstance("jks");
+        trustStore.load(new FileInputStream(caCertPath), caCertPassword.toCharArray());
+
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("X509");
+        trustManagerFactory.init(trustStore);
+
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("PKIX");
+        keyManagerFactory.init(keyStore, userCertPassword.toCharArray());
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
+
+        return sslContext.getSocketFactory();
+    }
+
     public JedisConnectionHelper(JedisConnectionHelperSettings bs){
+        System.out.println("Creating JedisConnectionHelper with "+bs);
         URI uri = buildURI(bs.getRedisHost(), bs.getRedisPort(), bs.getUserName(),bs.getPassword());
         HostAndPort address = new HostAndPort(uri.getHost(), uri.getPort());
         JedisClientConfig clientConfig = null;
-        System.out.println("Connection Creation Debug --> "+uri.getAuthority().split(":").length);
-        if(uri.getAuthority().split(":").length==3){
+        if(bs.isUsePassword()){
             String user = uri.getAuthority().split(":")[0];
             String password = uri.getAuthority().split(":")[1];
             password = password.split("@")[0];
-            System.out.println("\n\nUsing user: "+user+" / password @@@@@@@@@@"+password);
+            System.out.println("\n\nUsing user: "+user+" / password l!3*^rs@"+password);
             clientConfig = DefaultJedisClientConfig.builder().user(user).password(password)
                     .connectionTimeoutMillis(bs.getConnectionTimeoutMillis()).timeoutMillis(bs.getRequestTimeoutMillis()).build(); // timeout and client settings
 
-        }else {
+        }
+        else {
             clientConfig = DefaultJedisClientConfig.builder()
                     .connectionTimeoutMillis(bs.getConnectionTimeoutMillis()).timeoutMillis(bs.getRequestTimeoutMillis()).build(); // timeout and client settings
+        }
+        if(bs.isUseSSL()){ // manage client-side certificates to allow SSL handshake for connections
+            SSLSocketFactory sslFactory = null;
+            try{
+                sslFactory = createSslSocketFactory(
+                    bs.getCaCertPath(),
+                    bs.getCaCertPassword(), // use the password you specified for keytool command
+                    bs.getUserCertPath(),
+                    bs.getUserCertPassword() // use the password you specified for openssl command
+                );
+            }catch(Throwable sslStuff){
+                sslStuff.printStackTrace();
+                System.exit(1);
+            }
+            clientConfig = DefaultJedisClientConfig.builder().user(bs.getUserName()).password(bs.getPassword())
+                    .connectionTimeoutMillis(bs.getConnectionTimeoutMillis()).timeoutMillis(bs.getRequestTimeoutMillis())
+            .sslSocketFactory(sslFactory) // key/trust details
+                    .ssl(true).build();
         }
         GenericObjectPoolConfig<Connection> poolConfig = new ConnectionPoolConfig();
         poolConfig.setMaxIdle(bs.getPoolMaxIdle());
@@ -104,8 +136,14 @@ public class JedisConnectionHelper {
         poolConfig.setTestOnCreate(bs.isTestOnCreate());
         poolConfig.setTestOnBorrow(bs.isTestOnBorrow());
         poolConfig.setNumTestsPerEvictionRun(bs.getNumTestsPerEvictionRun());
+        poolConfig.setBlockWhenExhausted(bs.isBlockWhenExhausted());
+        poolConfig.setMinEvictableIdleTime(Duration.ofMillis(bs.getMinEvictableIdleTimeMilliseconds()));
+        poolConfig.setTimeBetweenEvictionRuns(Duration.ofMillis(bs.getTimeBetweenEvictionRunsMilliseconds()));
 
         this.connectionProvider = new PooledConnectionProvider(new ConnectionFactory(address, clientConfig), poolConfig);
         this.jedisPooled = new JedisPooled(connectionProvider);
+        jedisPooled.set("com.redislabs.sa.ot.util.JedisConnectionHelper","test");
+        jedisPooled.del("com.redislabs.sa.ot.util.JedisConnectionHelper");
     }
 }
+
