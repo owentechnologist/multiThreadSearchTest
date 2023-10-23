@@ -45,8 +45,8 @@ public class Main {
     static String queryStringsPropFileName = "idxa_zew_eventsQueryStrings.properties";
     static String simpleReturnFieldsPropFileName = "idxa_zew_eventsSimpleReturnFields.properties";
     static String aliasedReturnFieldsPropFileName = "idxa_zew_eventsAliasedReturnFields.properties";
-    static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER";
-    static String ALL_RESULTS_SORTED_SET="allresults";
+    static String PERFORMANCE_TEST_THREAD_COUNTER = "PERFORMANCE_TEST_THREAD_COUNTER"+System.nanoTime();
+    static String ALL_RESULTS_SORTED_SET="allresults"+System.nanoTime();
     static String INDEX_ALIAS_NAME = "idxa_zew_events";
     static long systemTestStartTime = System.currentTimeMillis();
     private static boolean multiValueSearch = false;
@@ -71,7 +71,7 @@ public class Main {
         String caCertPassword = "";
         String userCertPath = "";
         String userCertPassword = "";
-        int maxConnections = 1;
+        int maxConnections = 1000; // overridable...
         ArrayList<String> argList =null;
         ArrayList<SearchTest> testers = new ArrayList<>();
         ArrayList<String> searchQueries = null;
