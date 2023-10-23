@@ -82,6 +82,9 @@ public class Main {
                 int argIndex = argList.indexOf("--idxname");
                 INDEX_ALIAS_NAME = argList.get(argIndex+1);
                 System.out.println("loading custom --idxname == "+INDEX_ALIAS_NAME);
+                queryStringsPropFileName = INDEX_ALIAS_NAME+"QueryStrings.properties";
+                simpleReturnFieldsPropFileName = INDEX_ALIAS_NAME+"SimpleReturnFields.properties";
+                aliasedReturnFieldsPropFileName = INDEX_ALIAS_NAME+"AliasedReturnFields.properties";
             }
             if(argList.contains("--multivalue")){
                 int argIndex = argList.indexOf("--host2");
