@@ -539,8 +539,10 @@ class SearchTest implements Runnable{
                     .returnFields(returnFieldsArg)
                     .limit(0, numberOfResultsLimit)
                     .dialect(Main.dialectVersion));
-        }catch(redis.clients.jedis.exceptions.JedisConnectionException exception) {
-            System.out.println("\nexecuteQueryLoadedReturnFields() Bad thing Happened: client time (millis) is: "+System.currentTimeMillis()+" "+exception.getMessage());
+        }catch(Exception exception) {
+            long timeOfException=System.currentTimeMillis();
+            String message = "";
+            System.out.println("\nexecuteQueryLoadedReturnFields() Bad thing Happened: client time (millis) is: "+timeOfException+" "+exception.getMessage());
             boolean brokenConnection = true;
             while(brokenConnection){ // loop forever until connectionHelper gives pool with good connection:
                 long dbsize = 0;
@@ -554,6 +556,8 @@ class SearchTest implements Runnable{
                     brokenConnection=false;
                 }
             }
+            System.out.println("\nexecuteQueryLoadedReturnFields() Good thing Happened: client time (millis) is: "+System.currentTimeMillis());
+            System.out.println("\n\tThis Thread was unable to query Redis for "+(System.currentTimeMillis()-timeOfException)+" milliseconds");
             result = pool.ftSearch(indexAliasName, new Query(query)
                     .returnFields(returnFieldsArg)
                     .limit(0, numberOfResultsLimit)
